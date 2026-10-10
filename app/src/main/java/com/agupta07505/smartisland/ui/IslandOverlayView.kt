@@ -173,16 +173,16 @@ fun IslandOverlayView(
     // little overshoot. Width leads and height follows, so the island stretches and
     // then blooms open instead of scaling uniformly.
     val sizeSpec = spring<androidx.compose.ui.unit.Dp>(
-        dampingRatio = 0.74f,
-        stiffness = 300f
+        dampingRatio = 0.8f,
+        stiffness = 240f
     )
     val sizeSpecFloat = spring<Float>(
         dampingRatio = 0.74f,
         stiffness = 300f
     )
     val heightSpec = spring<androidx.compose.ui.unit.Dp>(
-        dampingRatio = 0.8f,
-        stiffness = 210f
+        dampingRatio = 0.78f,
+        stiffness = 280f
     )
 
     val activeNotification = notifications.getOrNull(safeIndex)
@@ -269,7 +269,13 @@ fun IslandOverlayView(
     val height by transition.animateDp(transitionSpec = { heightSpec }, label = "islandHeight") {
         if (it) expandedHeight else if (isHiding) 0.dp else settings.height.dp
     }
-    val yOffset by transition.animateDp(transitionSpec = { sizeSpec }, label = "islandYOffset") {
+    // The top edge trails behind the size so the island grows down out of the pill
+    // before settling below the status bar, instead of dropping first and ballooning
+    // in mid-air. Critically damped: the top edge never bounces.
+    val yOffset by transition.animateDp(
+        transitionSpec = { spring(dampingRatio = 1f, stiffness = 140f) },
+        label = "islandYOffset"
+    ) {
         if (it) expandedTopOffset else 0.dp
     }
     val radius by transition.animateDp(transitionSpec = { sizeSpec }, label = "islandRadius") {

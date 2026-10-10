@@ -710,9 +710,45 @@ class SmartIslandOverlayService : AccessibilityService() {
                 layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
             }
         }
+        val geometryChanged = lp != null && (lp.width != w || lp.x != currentX)
         lastParams = params
-        runCatchingLogged(TAG, "Failed to update view layout") { 
-            windowManager.updateViewLayout(view, params) 
+        if (geometryChanged) {
+            resizeWithoutStaleFrame(view)
+        } else {
+            runCatchingLogged(TAG, "Failed to update view layout") {
+                windowManager.updateViewLayout(view, params)
+            }
+        }
+    }
+
+    /**
+     * When the window changes width/position, WindowManager briefly shows the old buffer at
+     * the new window origin, so the pill flashes off to one side for a frame. Draw one
+     * transparent frame first, resize, and reveal again once the new size is laid out.
+     */
+    private fun resizeWithoutStaleFrame(view: ComposeView) {
+        view.alpha = 0f
+        val choreographer = android.view.Choreographer.getInstance()
+        // Two frames: the first draws the transparent buffer, the second resizes.
+        choreographer.postFrameCallback {
+            choreographer.postFrameCallback {
+                if (islandView !== view) return@postFrameCallback
+                val params = lastParams ?: return@postFrameCallback
+                view.addOnLayoutChangeListener(object : android.view.View.OnLayoutChangeListener {
+                    override fun onLayoutChange(
+                        v: android.view.View, l: Int, t: Int, r: Int, b: Int,
+                        ol: Int, ot: Int, or: Int, ob: Int
+                    ) {
+                        v.removeOnLayoutChangeListener(this)
+                        v.alpha = 1f
+                    }
+                })
+                runCatchingLogged(TAG, "Failed to update view layout") {
+                    windowManager.updateViewLayout(view, params)
+                }
+                // Never leave the island invisible if no layout pass arrives.
+                view.postDelayed({ view.alpha = 1f }, 150L)
+            }
         }
     }
 
