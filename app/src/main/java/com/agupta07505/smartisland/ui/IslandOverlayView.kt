@@ -404,13 +404,22 @@ fun IslandOverlayView(
                         renderEffect = if (blurPx > 0.5f) liquidRenderEffect(blurPx) else null
                     }
             ) {
+                // At rest, snap to whole pixels: with a fractional height (36dp = 101.25px here)
+                // one edge lands on a pixel boundary and the other mid-pixel, so the top looks
+                // hard-cut while the bottom is soft.
+                val snap = liquidStrength == 0f
                 fun surface(centerX: Float, top: Float, w: Float, h: Float, r: Float, scale: Float, alpha: Float = 1f) {
                     if (w <= 0f || h <= 0f || scale <= 0f || alpha <= 0f) return
                     val sw = w * scale
-                    val sh = h * scale
+                    var sh = h * scale
+                    var y = top + (h - sh) / 2f
+                    if (snap) {
+                        y = kotlin.math.round(y)
+                        sh = kotlin.math.round(sh)
+                    }
                     drawRoundRect(
                         color = surfaceColor.copy(alpha = surfaceColor.alpha * alpha),
-                        topLeft = Offset(centerX - sw / 2f, top + (h - sh) / 2f),
+                        topLeft = Offset(centerX - sw / 2f, y),
                         size = Size(sw, sh),
                         cornerRadius = CornerRadius(minOf(r * scale, sh / 2f))
                     )

@@ -58,6 +58,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.padding
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -483,8 +485,12 @@ class SmartIslandOverlayService : AccessibilityService() {
                 isFocusableInTouchMode = true
                 setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
                 setContent {
-                    val fullWidth by isTouchableRegionSupported.collectAsState()
                     val anchor by cameraAnchor.collectAsState()
+                    // The window starts above the island so its top edge (anti-aliasing and the
+                    // liquid blur) is not clipped by the window boundary.
+                    androidx.compose.foundation.layout.Box(
+                        androidx.compose.ui.Modifier.padding(top = VISUAL_TOP_BLEED_DP.dp)
+                    ) {
                     OverlayIsland(
                         viewModel = this@SmartIslandOverlayService.viewModel,
                         statusBarHeight = statusBarHeight,
@@ -499,6 +505,7 @@ class SmartIslandOverlayService : AccessibilityService() {
                         isFullWidth = true,
                         cameraAnchor = anchor
                     )
+                    }
                 }
 
                 setupTouchableRegion(this)
@@ -735,7 +742,7 @@ class SmartIslandOverlayService : AccessibilityService() {
     }
 
     private fun visualY(settings: SmartIslandSettings): Int =
-        if (settings.enableNotchMode) 0 else settings.yOffset.dpToPx()
+        (if (settings.enableNotchMode) 0 else settings.yOffset.dpToPx()) - VISUAL_TOP_BLEED_DP.dpToPx()
 
     /** Full-screen, never-resized drawing window; only focus/soft-input ever change. */
     private fun visualParams(settings: SmartIslandSettings, focusable: Boolean, softInputMode: Int) =
@@ -1074,5 +1081,6 @@ class SmartIslandOverlayService : AccessibilityService() {
         // Must cover the longest spring settle (~520f stiffness) of the collapse
         // morph so the window is only shrunk after the pill has visually landed.
         private const val COLLAPSE_WINDOW_DELAY_MS = 650L
+        private const val VISUAL_TOP_BLEED_DP = 8f
     }
 }
