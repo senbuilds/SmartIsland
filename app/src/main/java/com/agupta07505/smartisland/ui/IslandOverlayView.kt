@@ -61,6 +61,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.asComposeRenderEffect
@@ -167,23 +169,7 @@ fun IslandOverlayView(
     // size, otherwise its first ~100ms are clipped by the small window and dropped.
     var windowHeightPx by remember { mutableIntStateOf(0) }
     val windowIsFull = windowHeightPx > with(density) { FULL_WINDOW_MIN_HEIGHT_DP.dp.roundToPx() }
-    val transition = updateTransition(targetState = expanded && windowIsFull, label = "islandTransition")
-
-    // Elastic, organic motion in the spirit of the Dynamic Island: a soft spring with a
-    // little overshoot. Width leads and height follows, so the island stretches and
-    // then blooms open instead of scaling uniformly.
-    val sizeSpec = spring<androidx.compose.ui.unit.Dp>(
-        dampingRatio = 0.8f,
-        stiffness = 240f
-    )
-    val sizeSpecFloat = spring<Float>(
-        dampingRatio = 0.74f,
-        stiffness = 300f
-    )
-    val heightSpec = spring<androidx.compose.ui.unit.Dp>(
-        dampingRatio = 0.78f,
-        stiffness = 280f
-    )
+    val targetExpanded = expanded && windowIsFull
 
     val activeNotification = notifications.getOrNull(safeIndex)
     val activeMode = activeNotification?.mode ?: IslandMode.Empty
@@ -263,74 +249,6 @@ fun IslandOverlayView(
     // A plain notification expands below the status bar with even side margins. The Fold
     // cover screen has nearly square corners (~9dp), so a large iOS-style radius looks off.
     val isIosNotification = activeMode == IslandMode.Notification && !settings.enableNotchMode && !isLandscape
-    val width by transition.animateDp(transitionSpec = { sizeSpec }, label = "islandWidth") {
-        if (it) (if (isIosNotification) screenWidth - IOS_EXPANDED_SIDE_MARGIN_DP.dp * 2 else expandedWidth) else if (isHiding) 0.dp else settings.width.dp
-    }
-    val height by transition.animateDp(transitionSpec = { heightSpec }, label = "islandHeight") {
-        if (it) expandedHeight else if (isHiding) 0.dp else settings.height.dp
-    }
-    // The top edge trails behind the size so the island grows down out of the pill
-    // before settling below the status bar, instead of dropping first and ballooning
-    // in mid-air. Critically damped: the top edge never bounces.
-    val yOffset by transition.animateDp(
-        transitionSpec = { spring(dampingRatio = 1f, stiffness = 140f) },
-        label = "islandYOffset"
-    ) {
-        if (it) expandedTopOffset else 0.dp
-    }
-    val radius by transition.animateDp(transitionSpec = { sizeSpec }, label = "islandRadius") {
-        if (it) (if (isIosNotification) IOS_EXPANDED_CORNER_DP.dp else 34.dp) else if (isHiding) 0.dp else settings.cornerRadius.dp
-    }
-    val animatedXOffset by transition.animateDp(transitionSpec = { sizeSpec }, label = "islandXOffset") {
-        if (it) 0.dp else collapsedMainOffset
-    }
-
-    val collapsedAlpha by transition.animateFloat(
-        transitionSpec = {
-            if (targetState) tween(110, easing = FastOutSlowInEasing)
-            else tween(220, delayMillis = 140, easing = FastOutSlowInEasing)
-        },
-        label = "collapsedAlpha"
-    ) {
-        if (it || isHiding) 0f else 1f
-    }
-
-    val expandedAlpha by transition.animateFloat(
-        transitionSpec = {
-            if (targetState) tween(260, delayMillis = 90, easing = FastOutSlowInEasing)
-            else tween(130, easing = FastOutSlowInEasing)
-        },
-        label = "expandedAlpha"
-    ) {
-        if (it) 1f else 0f
-    }
-
-    val contentScale by transition.animateFloat(
-        transitionSpec = { sizeSpecFloat },
-        label = "contentScale"
-    ) {
-        if (it) 1f else 0.9f
-    }
-
-    // 0 = collapsed pill, 1 = expanded; drives the liquid "droplet" bridge
-    val morphProgress by transition.animateFloat(
-        transitionSpec = { spring(dampingRatio = 0.8f, stiffness = 210f) },
-        label = "morphProgress"
-    ) {
-        if (it) 1f else 0f
-    }
-
-    val contentSlideY by transition.animateDp(
-        transitionSpec = { sizeSpec },
-        label = "contentSlideY"
-    ) {
-        if (it) 0.dp else (-6).dp
-    }
-
-    val safeWidth = width.coerceAtLeast(0.dp)
-    val safeHeight = height.coerceAtLeast(0.dp)
-    val safeRadius = radius.coerceAtLeast(0.dp)
-
     // Tactile spring scale bounce animation only when user switches between active notifications
     val switchScaleAnim = remember { androidx.compose.animation.core.Animatable(1f) }
     var isInitialComposition by remember { mutableStateOf(true) }
@@ -374,36 +292,8 @@ fun IslandOverlayView(
         notifications.indexOfFirst { it.key == tertiaryNotification.key }
     } else -1
     val isSplitMode = if (settings.enableNotchMode) false else secondaryNotification != null
-    val secondaryIsPill = compactShapes.singleOrNull() == CompactNotificationShape.MiniPill
     val showTertiaryPill = compactShapes.size == 2 && tertiaryNotification != null
 
-    val secondaryAlpha by animateFloatAsState(
-        targetValue = if (isSplitMode && !isHiding) 1f else 0f,
-        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
-        label = "secondaryAlpha"
-    )
-    val secondaryScale by animateFloatAsState(
-        targetValue = if (isSplitMode && !isHiding) 1f else 0.3f,
-        animationSpec = spring(dampingRatio = 0.68f, stiffness = 480f),
-        label = "secondaryScale"
-    )
-    val secondaryBubbleWidth by animateDpAsState(
-        targetValue = if (secondaryIsPill) miniPillWidth else circleSize,
-        animationSpec = spring(dampingRatio = 0.75f, stiffness = 520f),
-        label = "secondaryBubbleWidth"
-    )
-    val secondaryPillProgress = (miniPillWidth - circleSize).value.let { widthDelta ->
-        if (widthDelta == 0f) {
-            if (secondaryIsPill) 1f else 0f
-        } else {
-            ((secondaryBubbleWidth - circleSize).value / widthDelta).coerceIn(0f, 1f)
-        }
-    }
-    val secondaryBubbleCorner by animateDpAsState(
-        targetValue = if (secondaryIsPill) settings.cornerRadius.dp else circleSize / 2f,
-        animationSpec = spring(dampingRatio = 0.75f, stiffness = 520f),
-        label = "secondaryBubbleCorner"
-    )
     val tertiaryAlpha by animateFloatAsState(
         targetValue = if (showTertiaryPill && !isHiding) 1f else 0f,
         animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
@@ -421,29 +311,65 @@ fun IslandOverlayView(
     } else {
         circleCenter - mainCenter
     }
-    val secondaryExpandedOffset = calculateSecondaryExpandedOffset(
-        secondaryIsPill = secondaryIsPill,
-        isCircleLeft = isCircleLeft,
-        isFullWidth = isFullWidth,
-        expandedCompactX = expandedCompactX.value,
-        screenCenter = screenCenter.value,
-        miniPillWidth = miniPillWidth.value,
-        circleSize = circleSize.value,
-        compactGap = compactGap.value
-    ).dp
-    val secondaryOffset by animateDpAsState(
-        targetValue = if (!expanded) collapsedSecondaryOffset else secondaryExpandedOffset,
-        animationSpec = spring(dampingRatio = 0.75f, stiffness = 520f),
-        label = "secondaryOffset"
+
+    // ---- Liquid motion: one choreographer drives every surface (see IslandMotion) ----
+    val expandedMainWidth = if (isIosNotification) screenWidth - IOS_EXPANDED_SIDE_MARGIN_DP.dp * 2 else expandedWidth
+    val targets = IslandMotionTargets(
+        mainX = if (targetExpanded) 0f else collapsedMainOffset.value,
+        mainY = if (targetExpanded) expandedTopOffset.value else 0f,
+        mainW = if (targetExpanded) expandedMainWidth.value else if (isHiding) 0f else settings.width,
+        mainH = if (targetExpanded) expandedHeight.value else if (isHiding) 0f else settings.height,
+        mainR = if (targetExpanded) (if (isIosNotification) IOS_EXPANDED_CORNER_DP else 34f) else if (isHiding) 0f else settings.cornerRadius,
+        pillW = settings.width,
+        pillH = settings.height,
+        hasSecondary = isSplitMode && !isHiding,
+        // Expanded: the companion takes over the pill's spot over the camera.
+        secX = if (targetExpanded) collapsedMainOffset.value else collapsedSecondaryOffset.value,
+        secW = if (targetExpanded) settings.width else circleSize.value,
+        secR = if (targetExpanded) settings.cornerRadius else circleSize.value / 2f,
+        circle = circleSize.value,
     )
+    val motion = remember { IslandMotion(targets) }
+    val latestTargets by rememberUpdatedState(targets)
+    var choreographedExpanded by remember { mutableStateOf(targetExpanded) }
+    LaunchedEffect(targetExpanded) {
+        if (targetExpanded == choreographedExpanded) return@LaunchedEffect
+        choreographedExpanded = targetExpanded
+        if (targetExpanded) {
+            motion.expand { latestTargets }
+        } else if (latestTargets.mainW > 0f) {
+            motion.collapse({ latestTargets }) { playLandingThud(context) }
+        }
+        motion.settle(latestTargets, targetExpanded)
+    }
+    LaunchedEffect(targets) {
+        if (motion.busy || targetExpanded != choreographedExpanded) return@LaunchedEffect
+        motion.settle(targets, targetExpanded)
+    }
+
+    val safeWidth = motion.mainW.value.coerceAtLeast(0f).dp
+    val safeHeight = motion.mainH.value.coerceAtLeast(0f).dp
+    val safeRadius = motion.mainR.value.coerceAtLeast(0f).dp
+    val yOffset = motion.mainY.value.dp
+    val animatedXOffset = motion.mainX.value.dp
+    val collapsedAlpha = motion.collapsedAlpha.value
+    val expandedAlpha = motion.expandedAlpha.value
+    val contentScale = 0.92f + 0.08f * expandedAlpha
+    val contentSlideY = (-6).dp * (1f - expandedAlpha)
+    val morphProgress = motion.expandProgress(targets, expandedHeight.value)
+    val secondaryAlpha = motion.secAlpha
+    val secondaryScale = 1f
+    val secondaryOffset = motion.secX.dp
+    val secondaryBubbleWidth = motion.secW.dp
+    val secondaryBubbleCorner = motion.secR.coerceAtLeast(0f).dp
+    val secondaryPillProgress = ((motion.secW - circleSize.value) / (settings.width - circleSize.value))
+        .takeIf { it.isFinite() }?.coerceIn(0f, 1f) ?: 0f
 
     // Liquid layer: every black surface is drawn into one layer. While shapes move, the
     // layer is blurred and alpha-thresholded so nearby shapes fuse like two droplets
     // (a metaball effect); once settled the effect is off and edges are crisp again.
     val useLiquid = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !settings.enableNotchMode
-    val expandBump = (4f * morphProgress * (1f - morphProgress)).coerceIn(0f, 1f)
-    val secondaryBump = (4f * secondaryAlpha * (1f - secondaryAlpha)).coerceIn(0f, 1f)
-    val liquidStrength = if (useLiquid) maxOf(expandBump, secondaryBump) else 0f
+    val liquidStrength = if (useLiquid) motion.liquid.value else 0f
     val surfaceColor = pillBackgroundColor.copy(alpha = settings.opacity)
 
     // Outer Box: Fills the entire WindowManager window bounds (which are padded for easy touch)
@@ -506,24 +432,33 @@ fun IslandOverlayView(
                     )
                 }
 
-                // Main island
-                surface(
-                    centerX = cx + animatedXOffset.toPx() + (if (!currentExpanded) pillDragOffsetX else 0f),
-                    top = yOffset.toPx() + dragOffset,
-                    w = safeWidth.toPx(),
-                    h = safeHeight.toPx(),
-                    r = safeRadius.toPx(),
-                    scale = switchScaleAnim.value
-                )
+                // Main island: swell (centered), landing squash (anchored at the top) and sink.
+                run {
+                    val sw = safeWidth.toPx() * motion.swell.value * motion.squashX.value
+                    val sh = safeHeight.toPx() * motion.swell.value * motion.squashY.value
+                    val grow = safeHeight.toPx() * (motion.swell.value - 1f) / 2f
+                    surface(
+                        centerX = cx + animatedXOffset.toPx() + (if (!currentExpanded) pillDragOffsetX else 0f),
+                        top = yOffset.toPx() + dragOffset + motion.sink.value.dp.toPx() - grow,
+                        w = sw,
+                        h = sh,
+                        r = safeRadius.toPx() * motion.swell.value,
+                        scale = switchScaleAnim.value
+                    )
+                }
 
                 if (secondaryAlpha > 0f && secondaryNotification != null) {
+                    // Leading/trailing stretch makes the companion pull toward where it is
+                    // going (or pinch where it is being pushed) without distorting content.
+                    val leadL = motion.secLeadLeft.dp.toPx()
+                    val leadR = motion.secLeadRight.dp.toPx()
                     surface(
-                        centerX = cx + secondaryOffset.toPx(),
-                        top = 0f,
-                        w = secondaryBubbleWidth.toPx(),
+                        centerX = cx + secondaryOffset.toPx() + (leadR - leadL) / 2f,
+                        top = motion.secArc.dp.toPx(),
+                        w = secondaryBubbleWidth.toPx() + leadL + leadR,
                         h = circleSize.toPx(),
                         r = secondaryBubbleCorner.toPx(),
-                        scale = secondaryScale * switchScaleAnim.value,
+                        scale = switchScaleAnim.value,
                         alpha = secondaryAlpha
                     )
                 }
@@ -538,6 +473,30 @@ fun IslandOverlayView(
                         alpha = tertiaryAlpha
                     )
                 }
+            }
+        }
+
+        // A faint, moving highlight along the top edge, like light on a black droplet.
+        // Only while the shape is in motion; at rest the island is plain black.
+        if (useLiquid && liquidStrength > 0.02f && safeWidth > 0.dp) {
+            Canvas(modifier = Modifier.fillMaxWidth().height(yOffset + safeHeight + 8.dp)) {
+                val w = safeWidth.toPx() * motion.swell.value * motion.squashX.value
+                val h = safeHeight.toPx() * motion.swell.value * motion.squashY.value
+                val left = size.width / 2f + animatedXOffset.toPx() - w / 2f
+                val top = yOffset.toPx() + dragOffset + motion.sink.value.dp.toPx()
+                val inset = 0.75.dp.toPx()
+                drawRoundRect(
+                    brush = Brush.verticalGradient(
+                        0f to Color.White.copy(alpha = 0.16f * liquidStrength),
+                        0.45f to Color.Transparent,
+                        startY = top,
+                        endY = top + h
+                    ),
+                    topLeft = Offset(left + inset, top + inset),
+                    size = Size((w - inset * 2).coerceAtLeast(0f), (h - inset * 2).coerceAtLeast(0f)),
+                    cornerRadius = CornerRadius((safeRadius.toPx() - inset).coerceAtLeast(0f)),
+                    style = Stroke(width = 1.dp.toPx())
+                )
             }
         }
 
@@ -589,7 +548,7 @@ fun IslandOverlayView(
                     translationX = animatedXOffset.toPx() + (if (!currentExpanded) pillDragOffsetX else 0f)
                     scaleX = if (widthPx > 0f) switchScaleAnim.value else 1f
                     scaleY = if (widthPx > 0f) switchScaleAnim.value else 1f
-                    translationY = yOffset.toPx() + dragOffset
+                    translationY = yOffset.toPx() + dragOffset + motion.sink.value.dp.toPx()
                 }
                 .then(
                     if (settings.enableShadow && settings.shadowElevation > 0f && !isHiding && safeWidth > 0.dp && !useLiquid) {
@@ -990,7 +949,7 @@ fun IslandOverlayView(
                     .absoluteOffset {
                         IntOffset(
                             secondaryOffset.roundToPx(),
-                            0
+                            motion.secArc.dp.roundToPx()
                         )
                     }
                     .width(secondaryBubbleWidth)
@@ -1029,7 +988,11 @@ fun IslandOverlayView(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .graphicsLayer { alpha = 1f - secondaryPillProgress },
+                        .graphicsLayer {
+                            // Content swaps only once the shape has settled: the old face
+                            // fades early, the new one late, never both at once.
+                            alpha = 1f - smoothStep(0f, 0.35f, secondaryPillProgress)
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     SecondaryBubbleContent(
@@ -1041,7 +1004,7 @@ fun IslandOverlayView(
                     modifier = Modifier
                         .requiredWidth(miniPillWidth)
                         .height(circleSize)
-                        .graphicsLayer { alpha = secondaryPillProgress },
+                        .graphicsLayer { alpha = smoothStep(0.75f, 1f, secondaryPillProgress) },
                     contentAlignment = Alignment.Center
                 ) {
                     IslandCollapsedContent(
@@ -1266,6 +1229,11 @@ internal fun calculateSecondaryExpandedOffset(
 }
 private const val SWIPE_THRESHOLD_DP = 35f
 private const val LIQUID_MAX_BLUR_DP = 6f
+
+private fun smoothStep(from: Float, to: Float, x: Float): Float {
+    val t = ((x - from) / (to - from)).coerceIn(0f, 1f)
+    return t * t * (3f - 2f * t)
+}
 private const val FULL_WINDOW_MIN_HEIGHT_DP = 200f
 private const val CONTENT_MAX_BLUR_DP = 10f
 
