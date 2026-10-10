@@ -59,6 +59,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.graphics.asComposeRenderEffect
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.foundation.Canvas
+import androidx.annotation.RequiresApi
+import android.os.Build
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -150,23 +161,27 @@ fun IslandOverlayView(
         screenWidthDp = configuration.screenWidthDp.toFloat(),
         screenHeightDp = configuration.screenHeightDp.toFloat()
     ).dp
-    val transition = updateTransition(targetState = expanded, label = "islandTransition")
+    // The service grows the window to full screen when expanding, but WindowManager applies
+    // that asynchronously. Start the expand morph only once this view is actually full
+    // size, otherwise its first ~100ms are clipped by the small window and dropped.
+    var windowHeightPx by remember { mutableIntStateOf(0) }
+    val windowIsFull = windowHeightPx > with(density) { FULL_WINDOW_MIN_HEIGHT_DP.dp.roundToPx() }
+    val transition = updateTransition(targetState = expanded && windowIsFull, label = "islandTransition")
 
+    // Elastic, organic motion in the spirit of the Dynamic Island: a soft spring with a
+    // little overshoot. Width leads and height follows, so the island stretches and
+    // then blooms open instead of scaling uniformly.
     val sizeSpec = spring<androidx.compose.ui.unit.Dp>(
-        dampingRatio = 0.72f,
-        stiffness = 520f
+        dampingRatio = 0.74f,
+        stiffness = 300f
     )
     val sizeSpecFloat = spring<Float>(
-        dampingRatio = 0.72f,
-        stiffness = 520f
+        dampingRatio = 0.74f,
+        stiffness = 300f
     )
     val heightSpec = spring<androidx.compose.ui.unit.Dp>(
-        dampingRatio = 0.76f,
-        stiffness = 520f
-    )
-    val alphaSpec = tween<Float>(
-        durationMillis = 190,
-        easing = FastOutSlowInEasing
+        dampingRatio = 0.8f,
+        stiffness = 210f
     )
 
     val activeNotification = notifications.getOrNull(safeIndex)
@@ -264,14 +279,20 @@ fun IslandOverlayView(
     }
 
     val collapsedAlpha by transition.animateFloat(
-        transitionSpec = { alphaSpec },
+        transitionSpec = {
+            if (targetState) tween(110, easing = FastOutSlowInEasing)
+            else tween(220, delayMillis = 140, easing = FastOutSlowInEasing)
+        },
         label = "collapsedAlpha"
     ) {
         if (it || isHiding) 0f else 1f
     }
 
     val expandedAlpha by transition.animateFloat(
-        transitionSpec = { alphaSpec },
+        transitionSpec = {
+            if (targetState) tween(260, delayMillis = 90, easing = FastOutSlowInEasing)
+            else tween(130, easing = FastOutSlowInEasing)
+        },
         label = "expandedAlpha"
     ) {
         if (it) 1f else 0f
@@ -281,7 +302,15 @@ fun IslandOverlayView(
         transitionSpec = { sizeSpecFloat },
         label = "contentScale"
     ) {
-        if (it) 1f else 0.95f
+        if (it) 1f else 0.9f
+    }
+
+    // 0 = collapsed pill, 1 = expanded; drives the liquid "droplet" bridge
+    val morphProgress by transition.animateFloat(
+        transitionSpec = { spring(dampingRatio = 0.8f, stiffness = 210f) },
+        label = "morphProgress"
+    ) {
+        if (it) 1f else 0f
     }
 
     val contentSlideY by transition.animateDp(
@@ -401,6 +430,15 @@ fun IslandOverlayView(
         label = "secondaryOffset"
     )
 
+    // Liquid layer: every black surface is drawn into one layer. While shapes move, the
+    // layer is blurred and alpha-thresholded so nearby shapes fuse like two droplets
+    // (a metaball effect); once settled the effect is off and edges are crisp again.
+    val useLiquid = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !settings.enableNotchMode
+    val expandBump = (4f * morphProgress * (1f - morphProgress)).coerceIn(0f, 1f)
+    val secondaryBump = (4f * secondaryAlpha * (1f - secondaryAlpha)).coerceIn(0f, 1f)
+    val liquidStrength = if (useLiquid) maxOf(expandBump, secondaryBump) else 0f
+    val surfaceColor = pillBackgroundColor.copy(alpha = settings.opacity)
+
     // Outer Box: Fills the entire WindowManager window bounds (which are padded for easy touch)
     val outerModifier = if (currentExpanded) {
         modifier
@@ -418,9 +456,81 @@ fun IslandOverlayView(
     }
 
     Box(
-        modifier = outerModifier,
+        modifier = outerModifier.onSizeChanged { windowHeightPx = it.height },
         contentAlignment = Alignment.TopCenter
     ) {
+
+        if (useLiquid) {
+            Canvas(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        val blurPx = LIQUID_MAX_BLUR_DP.dp.toPx() * liquidStrength
+                        renderEffect = if (blurPx > 0.5f) liquidRenderEffect(blurPx) else null
+                    }
+            ) {
+                fun surface(centerX: Float, top: Float, w: Float, h: Float, r: Float, scale: Float, alpha: Float = 1f) {
+                    if (w <= 0f || h <= 0f || scale <= 0f || alpha <= 0f) return
+                    val sw = w * scale
+                    val sh = h * scale
+                    drawRoundRect(
+                        color = surfaceColor.copy(alpha = surfaceColor.alpha * alpha),
+                        topLeft = Offset(centerX - sw / 2f, top + (h - sh) / 2f),
+                        size = Size(sw, sh),
+                        cornerRadius = CornerRadius(minOf(r * scale, sh / 2f))
+                    )
+                }
+                val cx = size.width / 2f
+                val pillW = settings.width.dp.toPx()
+                val pillH = settings.height.dp.toPx()
+
+                // The droplet left behind at the camera: it is the pill at rest and
+                // shrinks away as the island stretches out (and grows back on collapse).
+                if (!isHiding) {
+                    surface(
+                        centerX = cx + collapsedMainOffset.toPx(),
+                        top = 0f,
+                        w = pillW,
+                        h = pillH,
+                        r = settings.cornerRadius.dp.toPx(),
+                        scale = (1f - morphProgress).coerceIn(0f, 1f)
+                    )
+                }
+
+                // Main island
+                surface(
+                    centerX = cx + animatedXOffset.toPx() + (if (!currentExpanded) pillDragOffsetX else 0f),
+                    top = yOffset.toPx() + dragOffset,
+                    w = safeWidth.toPx(),
+                    h = safeHeight.toPx(),
+                    r = safeRadius.toPx(),
+                    scale = switchScaleAnim.value
+                )
+
+                if (secondaryAlpha > 0f && secondaryNotification != null) {
+                    surface(
+                        centerX = cx + secondaryOffset.toPx(),
+                        top = 0f,
+                        w = secondaryBubbleWidth.toPx(),
+                        h = circleSize.toPx(),
+                        r = secondaryBubbleCorner.toPx(),
+                        scale = secondaryScale * switchScaleAnim.value,
+                        alpha = secondaryAlpha
+                    )
+                }
+                if (tertiaryAlpha > 0f && tertiaryNotification != null) {
+                    surface(
+                        centerX = cx + (expandedCompactX - screenCenter + miniPillWidth / 2f).toPx(),
+                        top = 0f,
+                        w = miniPillWidth.toPx(),
+                        h = circleSize.toPx(),
+                        r = settings.cornerRadius.dp.toPx(),
+                        scale = tertiaryScale * switchScaleAnim.value,
+                        alpha = tertiaryAlpha
+                    )
+                }
+            }
+        }
 
         // Invisible touch target over the pill location when hiding, so tapping the area reveals the pill or opens shortcuts
         if (isHiding && !currentExpanded) {
@@ -473,7 +583,7 @@ fun IslandOverlayView(
                     translationY = yOffset.toPx() + dragOffset
                 }
                 .then(
-                    if (settings.enableShadow && settings.shadowElevation > 0f && !isHiding && safeWidth > 0.dp) {
+                    if (settings.enableShadow && settings.shadowElevation > 0f && !isHiding && safeWidth > 0.dp && !useLiquid) {
                         val activeMainShadow = if (currentExpanded) {
                             (settings.shadowElevation * 1.5f).dp
                         } else {
@@ -489,7 +599,7 @@ fun IslandOverlayView(
                     } else Modifier
                 )
                 .clip(mainShape)
-                .background(pillBackgroundColor.copy(alpha = settings.opacity))
+                .then(if (useLiquid) Modifier else Modifier.background(surfaceColor))
                 .pointerInput(displayMetrics.density, isInputActive) {
                     if (isInputActive) return@pointerInput
                     awaitEachGesture {
@@ -815,6 +925,7 @@ fun IslandOverlayView(
                         .align(Alignment.TopCenter)
                         .graphicsLayer {
                             alpha = collapsedAlpha
+                            renderEffect = contentBlur((1f - collapsedAlpha) * CONTENT_MAX_BLUR_DP.dp.toPx())
                         }
                 ) {
                     IslandCollapsedContent(
@@ -838,6 +949,7 @@ fun IslandOverlayView(
                             scaleX = contentScale
                             scaleY = contentScale
                             translationY = contentSlideY.toPx()
+                            renderEffect = contentBlur((1f - expandedAlpha) * CONTENT_MAX_BLUR_DP.dp.toPx())
                         }
                 ) {
                     IslandExpandedContent(
@@ -879,7 +991,7 @@ fun IslandOverlayView(
                         scaleY = secondaryScale * switchScaleAnim.value
                     }
                     .then(
-                        if (settings.enableShadow && settings.shadowElevation > 0f) {
+                        if (settings.enableShadow && settings.shadowElevation > 0f && !useLiquid) {
                             Modifier.shadow(
                                 elevation = (settings.shadowElevation * 0.85f).dp,
                                 shape = RoundedCornerShape(secondaryBubbleCorner),
@@ -890,7 +1002,7 @@ fun IslandOverlayView(
                         } else Modifier
                     )
                     .clip(RoundedCornerShape(secondaryBubbleCorner))
-                    .background(pillBackgroundColor.copy(alpha = settings.opacity))
+                    .then(if (useLiquid) Modifier else Modifier.background(surfaceColor))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
@@ -949,7 +1061,7 @@ fun IslandOverlayView(
                         scaleY = tertiaryScale * switchScaleAnim.value
                     }
                     .then(
-                        if (settings.enableShadow && settings.shadowElevation > 0f) {
+                        if (settings.enableShadow && settings.shadowElevation > 0f && !useLiquid) {
                             Modifier.shadow(
                                 elevation = (settings.shadowElevation * 0.85f).dp,
                                 shape = RoundedCornerShape(settings.cornerRadius.dp),
@@ -960,7 +1072,7 @@ fun IslandOverlayView(
                         } else Modifier
                     )
                     .clip(RoundedCornerShape(settings.cornerRadius.dp))
-                    .background(pillBackgroundColor.copy(alpha = settings.opacity))
+                    .then(if (useLiquid) Modifier else Modifier.background(surfaceColor))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
@@ -1143,6 +1255,31 @@ internal fun calculateSecondaryExpandedOffset(
     }
 }
 private const val SWIPE_THRESHOLD_DP = 35f
+private const val LIQUID_MAX_BLUR_DP = 9f
+private const val FULL_WINDOW_MIN_HEIGHT_DP = 200f
+private const val CONTENT_MAX_BLUR_DP = 10f
+
+private fun contentBlur(radiusPx: Float): androidx.compose.ui.graphics.RenderEffect? =
+    if (radiusPx > 0.5f) BlurEffect(radiusPx, radiusPx, TileMode.Decal) else null
+
+/** Blur, then push alpha through a steep threshold so overlapping blurs fuse into one smooth shape. */
+@RequiresApi(Build.VERSION_CODES.S)
+private fun liquidRenderEffect(blurPx: Float): androidx.compose.ui.graphics.RenderEffect {
+    val threshold = android.graphics.ColorMatrix(
+        floatArrayOf(
+            1f, 0f, 0f, 0f, 0f,
+            0f, 1f, 0f, 0f, 0f,
+            0f, 0f, 1f, 0f, 0f,
+            0f, 0f, 0f, LIQUID_ALPHA_GAIN, -LIQUID_ALPHA_GAIN * 0.5f * 255f
+        )
+    )
+    val blur = android.graphics.RenderEffect.createBlurEffect(blurPx, blurPx, android.graphics.Shader.TileMode.DECAL)
+    return android.graphics.RenderEffect
+        .createColorFilterEffect(android.graphics.ColorMatrixColorFilter(threshold), blur)
+        .asComposeRenderEffect()
+}
+
+private const val LIQUID_ALPHA_GAIN = 18f
 private const val IOS_EXPANDED_SIDE_MARGIN_DP = 14f
 private const val IOS_EXPANDED_CORNER_DP = 20f
 private const val PILL_SWIPE_THRESHOLD_DP = 16f

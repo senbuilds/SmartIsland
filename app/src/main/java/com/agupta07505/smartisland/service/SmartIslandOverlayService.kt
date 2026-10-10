@@ -472,6 +472,7 @@ class SmartIslandOverlayService : AccessibilityService() {
                 visibility = if (isHidden) android.view.View.GONE else android.view.View.VISIBLE
 
                 installOverlayViewTreeOwners()
+                useFixedSpeedAnimations(this)
                 isFocusable = true
                 isFocusableInTouchMode = true
                 setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
@@ -713,6 +714,32 @@ class SmartIslandOverlayService : AccessibilityService() {
         runCatchingLogged(TAG, "Failed to update view layout") { 
             windowManager.updateViewLayout(view, params) 
         }
+    }
+
+    /**
+     * Run the island's animations at 1x regardless of the system animator duration scale.
+     * Like the Dynamic Island, its motion is part of the design; a device set to 0.5x
+     * would otherwise halve every spring and make the morph look abrupt.
+     */
+    private fun useFixedSpeedAnimations(view: ComposeView) {
+        val context = androidx.compose.ui.platform.AndroidUiDispatcher.CurrentThread + FixedMotionDurationScale
+        val recomposer = androidx.compose.runtime.Recomposer(context)
+        val job = kotlinx.coroutines.CoroutineScope(context).launch {
+            recomposer.runRecomposeAndApplyChanges()
+        }
+        view.setParentCompositionContext(recomposer)
+        view.addOnAttachStateChangeListener(object : android.view.View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: android.view.View) = Unit
+            override fun onViewDetachedFromWindow(v: android.view.View) {
+                recomposer.cancel()
+                job.cancel()
+                v.removeOnAttachStateChangeListener(this)
+            }
+        })
+    }
+
+    private object FixedMotionDurationScale : androidx.compose.ui.MotionDurationScale {
+        override val scaleFactor: Float = 1f
     }
 
     private fun removeCollapsedWindow() {
