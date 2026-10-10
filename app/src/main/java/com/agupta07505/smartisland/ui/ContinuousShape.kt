@@ -112,5 +112,7 @@ private fun cornerProfile(ease: Float): CornerProfile {
     return CornerProfile(xs, ys).also { profileCache[key] = it }
 }
 
-private const val MAX_EASE = 1f
+// A light ease: the end stays nearly a semicircle (tip radius 0.955r, reach 1.077r) so
+// round glyphs sit concentric with it; only the join into the straight edge is softened.
+private const val MAX_EASE = 0.25f
 private const val PROFILE_STEPS = 40

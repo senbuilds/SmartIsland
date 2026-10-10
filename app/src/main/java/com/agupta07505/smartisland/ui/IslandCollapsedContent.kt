@@ -109,15 +109,16 @@ fun IslandCollapsedContent(
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         // Neither slot may reach into the camera hole at the pill's center.
         val keepoutHalf = if (cameraKeepoutDp > 0f) (cameraKeepoutDp / 2f + CAMERA_KEEPOUT_MARGIN_DP).dp else 0.dp
-        val leftSlotMax = (maxWidth / 2f - keepoutHalf - LEFT_SLOT_PADDING_START_DP.dp).coerceAtLeast(0.dp)
+        val leftSlotMax = (maxWidth / 2f - keepoutHalf).coerceAtLeast(0.dp)
         val rightSlotMax = (maxWidth / 2f - keepoutHalf - RIGHT_SLOT_PADDING_END_DP.dp).coerceAtLeast(0.dp)
 
-        // Left Slot (Icon / Glyphs)
+        // Left Slot (Icon / Glyphs). A round glyph is centered in a square as tall as the
+        // pill, so it sits concentric with the capsule's rounded end (HIG: concentric
+        // placement); wider content still starts from the same inset.
         Box(
             modifier = Modifier
                 .align(Alignment.CenterStart)
-                .padding(start = LEFT_SLOT_PADDING_START_DP.dp)
-                .widthIn(max = leftSlotMax)
+                .widthIn(min = maxHeight.coerceAtMost(leftSlotMax), max = leftSlotMax)
                 .clipToBounds()
                 .graphicsLayer {
                     translationX = translationXLeft
@@ -1157,6 +1158,5 @@ fun BluetoothCollapsedRight(
 
 // Collapsed content animation
 private val COLLAPSED_TRANSLATION_MAX_DP = 32.dp
-private const val LEFT_SLOT_PADDING_START_DP = 8
 private const val RIGHT_SLOT_PADDING_END_DP = 12
 private const val CAMERA_KEEPOUT_MARGIN_DP = 3f
