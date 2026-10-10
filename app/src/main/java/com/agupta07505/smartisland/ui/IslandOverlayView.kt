@@ -1135,10 +1135,11 @@ internal fun calculateSecondaryExpandedOffset(
         if (isFullWidth) secCenter - screenCenter else 0f
     } else if (isCircleLeft) {
         val secCenter = expandedCompactX - compactGap - circleSize / 2f
-        if (isFullWidth) secCenter - screenCenter else -(miniPillWidth + compactGap) / 2f
+        // The window is centered on the main pill, so offsets are measured from its center
+        if (isFullWidth) secCenter - screenCenter else -(miniPillWidth / 2f + compactGap + circleSize / 2f)
     } else {
         val secCenter = expandedCompactX + miniPillWidth + compactGap + circleSize / 2f
-        if (isFullWidth) secCenter - screenCenter else ((miniPillWidth + compactGap) / 2f)
+        if (isFullWidth) secCenter - screenCenter else miniPillWidth / 2f + compactGap + circleSize / 2f
     }
 }
 private const val SWIPE_THRESHOLD_DP = 35f

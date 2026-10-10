@@ -252,4 +252,24 @@ class IslandOverlayLayoutTest {
         )
         assertEquals(collapsedLeftCircleOffset, threeNotifLeftOffset, 0.01f)
     }
+
+    @Test
+    fun secondaryCircleKeepsItsCollapsedSpotWhenWindowIsCenteredOnPill() {
+        val miniPillWidth = 108f
+        val circleSize = 36f
+        val compactGap = 8f
+        val expected = miniPillWidth / 2f + compactGap + circleSize / 2f
+        val right = com.agupta07505.smartisland.ui.calculateSecondaryExpandedOffset(
+            secondaryIsPill = false, isCircleLeft = false, isFullWidth = false,
+            expandedCompactX = 0f, screenCenter = 0f,
+            miniPillWidth = miniPillWidth, circleSize = circleSize, compactGap = compactGap
+        )
+        val left = com.agupta07505.smartisland.ui.calculateSecondaryExpandedOffset(
+            secondaryIsPill = false, isCircleLeft = true, isFullWidth = false,
+            expandedCompactX = 0f, screenCenter = 0f,
+            miniPillWidth = miniPillWidth, circleSize = circleSize, compactGap = compactGap
+        )
+        assertEquals(expected, right, 0.01f)
+        assertEquals(-expected, left, 0.01f)
+    }
 }
