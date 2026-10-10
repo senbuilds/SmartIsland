@@ -27,11 +27,11 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.agupta07505.smartisland"
+        applicationId = "com.senbuilds.smartisland.fold8"
         minSdk = 26
         targetSdk = 36
         versionCode = 8
-        versionName = "7.0.0"
+        versionName = "7.0.0-fold8.1"
     }
 
     buildFeatures {

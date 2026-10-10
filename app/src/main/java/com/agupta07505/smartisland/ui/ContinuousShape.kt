@@ -1,8 +1,8 @@
 /*
- * Smart Island (2026)
- * © Animesh Gupta — github.com/agupta07505
+ * Smart Island · Galaxy Z Fold8 edition (2026)
+ * © Sen Hu — github.com/senbuilds
+ * Based on Smart Island by Animesh Gupta (github.com/agupta07505)
  * Licensed under the GNU GPL v3 License
- * Do not remove or alter this notice. - Per GPL-3.0 Section 4 & Section 5
  */
 
 package com.agupta07505.smartisland.ui

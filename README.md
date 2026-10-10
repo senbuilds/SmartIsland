@@ -1,3 +1,57 @@
+<h1 align="center">Smart Island · Galaxy Z Fold8 特调版</h1>
+
+<p align="center">
+  <strong>Smart Island Fold8</strong> — 为 Galaxy Z Fold8 外屏特调的灵动岛，加入液态水滴动效与苹果式交互。<br/>
+  A Galaxy Z Fold8 tuned edition of <a href="https://github.com/agupta07505/SmartIsland">Smart Island</a> with liquid droplet motion and iOS-style interaction.
+</p>
+
+<p align="center">
+  <strong>当前版本 / Current release: v7.0.0-fold8.1</strong> · 基于 Smart Island v7.0.0 · GPL-3.0
+</p>
+
+## 这是什么
+
+这是 Animesh Gupta 开源项目 [Smart Island](https://github.com/agupta07505/SmartIsland) 的一个分支版本，针对 **Samsung Galaxy Z Fold8 外屏**做了特调。原项目的全部功能都保留；改动集中在灵动岛的形态、动效和交互上。
+
+### 特调内容
+
+**液态水滴质感**
+- 展开像一滴水被拉开：先轻轻鼓起，再向两侧流开、略微冲过头后被“表面张力”拉回；内容在形状稳定后才从模糊中浮现。
+- 收起像水回流成一滴：边缘先回流、越近越快，最后“咚”一下落稳（轻微下沉、压扁、回弹一次，配低沉触感）。
+- 两个活动之间有液态关系：主通知展开时，次通知被吸到摄像头位置补位，中间短暂拉出一道细颈；主通知回来时把次通知“啵”地挤到旁边。
+- 只有黑色轮廓参与融合与形变，图标和文字始终清晰。
+
+**为 Fold8 外屏匹配**
+- 灵动岛锁定在外屏摄像头孔上，内容不会进入孔区。
+- 外屏几乎是直角，展开卡片改为 20dp 圆角、左右各留 14dp 边距，并放在状态栏下方，不与时间和信号图标重叠。
+- 收起的胶囊按苹果 HIG 的 36.67dp 高度，两端改为连续曲率圆角，圆形图标与端头同心。
+
+**苹果式通知交互**
+- 纯黑通知卡片：应用名与时间在顶部，标题 + 最多两行正文，深色半透明操作按钮。
+- 左右滑清除当前通知，上滑收回岛上（不删除），下滑或单击打开应用；新通知弹出后停留 15 秒。
+
+**更稳的渲染**
+- 绘制窗口全屏且永不改变大小，触摸由独立的透明窗口转发，消除了展开/收起结束时的闪烁与错位。
+- 灵动岛动画固定按 1 倍速播放，不受系统“动画缩放”设置影响。
+
+完整改动见 [CHANGELOG.md](CHANGELOG.md)。
+
+### 安装说明
+
+- 应用 ID 为 `com.senbuilds.smartisland.fold8`，可与原版 Smart Island 共存。
+- 首次使用需要手动开启通知使用权和无障碍服务（与原版相同）。
+- 应用内“检查更新”指向本仓库的发布页。
+
+### 致谢与协议
+
+- 原项目：[Smart Island](https://github.com/agupta07505/SmartIsland) © Animesh Gupta，GPL-3.0。
+- 本特调版由 Sen Hu（[@senbuilds](https://github.com/senbuilds)）于 2026 年 10 月修改，同样以 [GNU GPL v3.0](LICENSE) 发布。原作者的版权声明均保留在各源文件中；本版本新增的文件标注了特调版的版权。
+- 问题反馈请提交到本仓库的 [Issues](https://github.com/senbuilds/SmartIsland/issues)，不要提交给原项目。
+
+---
+
+<p align="center"><em>以下为原项目 Smart Island 的说明 / Original Smart Island README below</em></p>
+
 <h1 align="center">Smart Island</h1>
 
 <p align="center">

@@ -4,6 +4,31 @@ All notable changes to Smart Island should be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project uses the GNU General Public License v3.0.
 
+## [7.0.0-fold8.1] - 2026-10-10 · Galaxy Z Fold8 edition
+
+Modified by Sen Hu (@senbuilds) from Smart Island v7.0.0. Released under GPL-3.0.
+
+### Added
+- Liquid droplet motion: a single choreographer (`IslandMotion`) drives every surface. Expand swells then flows open with slight overshoot; collapse flows back and lands with a sink/spread/flatten "thud" plus a low haptic.
+- Companion relay: when the main activity expands, the companion is drawn into the camera spot along a shallow arc; on collapse the main squeezes it and pops it back out.
+- Metaball liquid layer (blur + alpha threshold) only while shapes move; faint moving edge highlight.
+- Continuous-curvature capsule (`continuousRoundRectPath`); collapsed height 36.67dp per Apple HIG; leading glyph concentric with the capsule end.
+- Swipe left/right on an expanded notification to dismiss it.
+- Debug builds accept `adb shell cmd notification post` for UI testing.
+
+### Changed
+- Expanded notification card: pure black, header with app and time, 20dp corners, 14dp side margins, placed below the status bar.
+- Swipe up collapses without deleting; swipe down opens the app; popups stay 15s.
+- Other activities stay as a detached circle instead of morphing across the camera.
+- Island animations run at 1x regardless of the system animator scale.
+- App ID `com.senbuilds.smartisland.fold8`, name "Smart Island Fold8"; update checker and project links point to this fork.
+
+### Fixed
+- End-of-animation flash: drawing now happens in a full-screen, never-resized window; touches go through a separate invisible window.
+- Island pinned to the camera cutout; pill no longer left off-center after an interrupted swipe.
+- Companion circle no longer overlaps the pill when expanding.
+- Clipped-looking top edge of the pill.
+
 ## [7.0.0] - 2026-09-20
 
 ### Major Release Highlights (v7.0.0)

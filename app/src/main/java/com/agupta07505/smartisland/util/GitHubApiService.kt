@@ -64,7 +64,8 @@ data class GitHubRepoStats(
 
 object GitHubApiService {
 
-    private const val REPO_OWNER = "agupta07505"
+    // Galaxy Z Fold8 edition: updates come from this fork, not the original project.
+    private const val REPO_OWNER = "senbuilds"
     private const val REPO_NAME = "SmartIsland"
     private const val BASE_URL = "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME"
     private const val CONNECT_TIMEOUT_MS = 6000

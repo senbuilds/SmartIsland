@@ -207,7 +207,7 @@ fun SmartIslandHomeScreen(
                 scope.launch { resolvedRepository.setWelcomeDialogShown(true) }
             },
             onStarClick = {
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/agupta07505/SmartIsland"))
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/senbuilds/SmartIsland"))
                 runCatching { context.startActivity(intent) }
             },
             onJoinCommunityClick = {

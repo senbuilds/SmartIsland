@@ -200,7 +200,7 @@ fun UpdatesAndDownloadsSection(
             latestVersion = releases.firstOrNull()?.tagName ?: "v$currentVersion",
             isLoading = isLoadingData && totalDownloads == null,
             onViewReleasesClick = {
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/agupta07505/SmartIsland/releases"))
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/senbuilds/SmartIsland/releases"))
                 runCatchingLogged("UpdatesAndDownloads", "Failed to open releases") {
                     context.startActivity(intent)
                 }
@@ -231,7 +231,7 @@ fun UpdatesAndDownloadsSection(
         TopContributorsCard(
             contributors = contributors,
             onContributeClick = {
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/agupta07505/SmartIsland/blob/main/CONTRIBUTING.md"))
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/senbuilds/SmartIsland/blob/main/CONTRIBUTING.md"))
                 runCatchingLogged("UpdatesAndDownloads", "Failed to open Contributing link") {
                     context.startActivity(intent)
                 }
