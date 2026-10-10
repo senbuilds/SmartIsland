@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Island Fold8 水滴动效</title>
+<meta name="description" content="Smart Island · Galaxy Z Fold8 特调版的液态水滴动效演示：展开像水被拉开，收起像水凝回一滴，两个活动之间“啵”地挤开。">
+<style>
+  :root {
+    --bg: #f3efe9;
+    --fg: #1d1b19;
+    --muted: #6d665e;
+    --card: #ffffff;
+    --line: #e4ddd3;
+    --accent: #d84315;
+    --wall-a: #efe6db;
+    --wall-b: #e3d6c6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121110;
+      --fg: #f1ece6;
+      --muted: #a39b91;
+      --card: #1c1a18;
+      --line: #2e2a26;
+      --accent: #ff7a4d;
+      --wall-a: #2a2622;
+      --wall-b: #1f1c19;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", "Segoe UI", sans-serif;
+  }
+  main { max-width: 980px; margin: 0 auto; padding: 32px 16px 64px; }
+  header h1 { font-size: 28px; line-height: 1.25; margin: 0 0 6px; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--muted); }
+  .stage {
+    display: grid;
+    grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+    gap: 32px;
+    margin-top: 28px;
+    align-items: start;
+  }
+  @media (max-width: 760px) { .stage { grid-template-columns: 1fr; } }
+
+  /* Phone (Galaxy Z Fold8 cover screen, top part) */
+  .phone {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 444 / 520;
+    border-radius: 34px;
+    overflow: hidden;
+    background: linear-gradient(160deg, var(--wall-a), var(--wall-b));
+    box-shadow: 0 0 0 10px #0b0b0b, 0 24px 60px rgba(0,0,0,.25);
+  }
+  .phone svg, .phone .layer { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .status {
+    position: absolute; top: 3.2%; left: 6%; right: 6%;
+    display: flex; justify-content: space-between;
+    font-size: clamp(11px, 3.2vw, 15px); font-weight: 600; color: #2b2622;
+    pointer-events: none;
+  }
+  .content { position: absolute; left: 0; top: 0; pointer-events: none; color: #fff; }
+  .chip { position: absolute; display: flex; align-items: center; justify-content: center; }
+  .avatar { border-radius: 50%; background: linear-gradient(135deg, #7ad0ff, #3b7bff); }
+  .dot { border-radius: 50%; background: #3b7bff; }
+  .ring { border-radius: 50%; border: 2px dotted #23c48e; display: flex; align-items: center; justify-content: center; color: #23c48e; font-size: 11px; }
+  .pct { color: #23c48e; font-weight: 600; }
+  .cardc { position: absolute; }
+  .cardc .hdr { display: flex; justify-content: space-between; align-items: center; color: rgba(255,255,255,.6); font-weight: 500; }
+  .cardc .hdr span:first-child { display: flex; align-items: center; gap: 6px; }
+  .cardc .app { width: 16px; height: 16px; border-radius: 5px; background: #2fd06a; display: inline-block; }
+  .cardc .row { display: flex; gap: 12px; align-items: center; margin-top: 8px; }
+  .cardc .big { flex: none; border-radius: 50%; background: linear-gradient(135deg, #7ad0ff, #3b7bff); }
+  .cardc .t { font-weight: 600; }
+  .cardc .b { color: rgba(255,255,255,.6); font-weight: 500; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+  button, label.tog {
+    font: inherit; font-size: 14px;
+    border: 1px solid var(--line); background: var(--card); color: var(--fg);
+    border-radius: 999px; padding: 8px 16px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button:focus-visible, label.tog:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+  label.tog input { accent-color: var(--accent); }
+
+  .notes h2 { font-size: 18px; margin: 0 0 8px; }
+  .notes h3 { font-size: 15px; margin: 18px 0 6px; }
+  .notes p, .notes li { color: var(--muted); }
+  .notes ul { padding-left: 18px; margin: 6px 0; }
+  .notes .beat { display: inline-block; font-weight: 700; color: var(--fg); }
+  .timeline { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 14px; font-size: 14px; }
+  .timeline table { width: 100%; border-collapse: collapse; }
+  .timeline td { padding: 4px 0; vertical-align: top; color: var(--muted); }
+  .timeline td:first-child { width: 92px; color: var(--fg); font-variant-numeric: tabular-nums; }
+  footer { margin-top: 40px; color: var(--muted); font-size: 14px; }
+  footer a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Smart Island · Galaxy Z Fold8 特调版</h1>
+    <p>液态水滴动效演示：打开有黏性，收起有重量，停下来有张力。</p>
+  </header>
+
+  <div class="stage">
+    <div>
+      <div class="phone" id="phone" aria-label="Fold8 外屏灵动岛动效演示">
+        <div class="status"><span>12:38</span><span>86%</span></div>
+        <svg id="svg" viewBox="0 0 444 520" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <defs>
+            <!-- Same idea as the app: blur, then a steep alpha threshold, so nearby shapes fuse -->
+            <filter id="liquid" x="-20%" y="-50%" width="140%" height="200%" color-interpolation-filters="sRGB">
+              <feGaussianBlur id="blur" in="SourceGraphic" stdDeviation="0"/>
+              <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -9"/>
+            </filter>
+            <linearGradient id="hl" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#fff" stop-opacity="1"/>
+              <stop offset=".45" stop-color="#fff" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <g id="goo">
+            <rect id="stem" fill="#000"/>
+            <rect id="main" fill="#000"/>
+            <rect id="sec" fill="#000"/>
+          </g>
+          <rect id="highlight" fill="none" stroke="url(#hl)" stroke-width="1"/>
+          <circle cx="222" cy="24" r="6" fill="#050505"/>
+        </svg>
+        <div class="layer" id="layer"></div>
+      </div>
+      <div class="controls">
+        <button class="primary" id="toggle">点一下灵动岛</button>
+        <button id="play">自动循环</button>
+        <label class="tog"><input type="checkbox" id="slow"> 慢动作 ×4</label>
+        <label class="tog"><input type="checkbox" id="second" checked> 有次通知（充电）</label>
+        <label class="tog"><input type="checkbox" id="goo" checked> 水滴融合</label>
+      </div>
+    </div>
+
+    <section class="notes">
+      <h2>一滴水被拉开，再凝回一滴</h2>
+      <p>灵动岛的轮廓有液体的牵引、张力和回弹感。只有黑色轮廓参与融合与形变，图标和文字始终清晰。</p>
+
+      <h3>展开：先鼓起来，再流开</h3>
+      <ul>
+        <li>灵动岛先轻轻<span class="beat">鼓</span>一下，像一滴水内部有了压力。</li>
+        <li>随后向两侧舒展，宽度先到、高度慢半拍，顶部最后才落下，所以是“往下长出来”。</li>
+        <li>接近目标时略微冲过头，再被表面张力拉回；内容在形状基本展开后才从模糊中浮出。</li>
+      </ul>
+
+      <h3>收起：边缘先回流，最后“咚”一下</h3>
+      <ul>
+        <li>内容先淡去，轮廓向摄像头收拢，越接近中心越快，外侧边缘略微滞后。</li>
+        <li>凝回的瞬间<span class="beat">咚</span>：整体轻轻下沉、横向摊开、纵向压扁，回弹一次后停稳，手机上配一下低沉触感。</li>
+      </ul>
+
+      <h3>两滴水之间的让位与挤出</h3>
+      <ul>
+        <li>主通知展开后，次通知晚 100ms 被“吸”到摄像头位置补位：沿浅弧线移动，朝中心的一侧先被拉长，途中与主通知之间拉出一道细颈再断开。</li>
+        <li>主通知回来时先把居中的次通知挤扁，接触瞬间形成连接颈部，越拉越细，<span class="beat">啵</span>地断开；次通知滑出去一点再被拉回，约 50ms 后主通知完成“咚”。</li>
+      </ul>
+
+      <div class="timeline">
+        <table>
+          <tr><td>0–90ms</td><td>鼓起 6%</td></tr>
+          <tr><td>70ms</td><td>宽度展开（带一点过冲）</td></tr>
+          <tr><td>110ms</td><td>高度跟上</td></tr>
+          <tr><td>130ms</td><td>顶边下落到状态栏下方</td></tr>
+          <tr><td>170ms</td><td>次通知开始补位</td></tr>
+          <tr><td>300ms</td><td>内容浮现</td></tr>
+          <tr><td>收起 330ms</td><td>次通知被挤压并“啵”出</td></tr>
+          <tr><td>收起 380ms</td><td>主通知“咚”地落稳</td></tr>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    基于 <a href="https://github.com/agupta07505/SmartIsland">Smart Island</a>（Animesh Gupta）· 特调版源码与下载：
+    <a href="https://github.com/senbuilds/SmartIsland">github.com/senbuilds/SmartIsland</a> · GPL-3.0
+  </footer>
+</main>
+
+<script>
+(() => {
+  // ---------- tiny animation engine: springs and tweens on plain numbers ----------
+  let speed = 1;
+  const jobs = new Set();
+  const A = v => ({ v, vel: 0, job: null });
+  const fastOutSlowIn = cubic(0.4, 0, 0.2, 1);
+  const inward = cubic(0.45, 0, 0.9, 0.55);
+
+  function cubic(x1, y1, x2, y2) {
+    return t => {
+      let u = t;
+      for (let i = 0; i < 6; i++) {
+        const x = 3 * (1 - u) ** 2 * u * x1 + 3 * (1 - u) * u * u * x2 + u ** 3 - t;
+        const dx = 3 * (1 - u) ** 2 * x1 + 6 * (1 - u) * u * (x2 - x1) + 3 * u * u * (1 - x2);
+        if (Math.abs(dx) < 1e-6) break;
+        u -= x / dx;
+      }
+      u = Math.min(1, Math.max(0, u));
+      return 3 * (1 - u) ** 2 * u * y1 + 3 * (1 - u) * u * u * y2 + u ** 3;
+    };
+  }
+  const wait = ms => new Promise(r => { const j = { t: 0, ms, done: r, kind: 'wait' }; jobs.add(j); });
+  function spring(a, to, z, k) {
+    return new Promise(r => {
+      if (a.job) { a.job.cancelled = true; jobs.delete(a.job); a.job.done(); }
+      const j = { kind: 'spring', a, to, z, k, done: r };
+      a.job = j; jobs.add(j);
+    });
+  }
+  function tween(a, to, ms, ease = fastOutSlowIn, onUpdate) {
+    return new Promise(r => {
+      if (a && a.job) { a.job.cancelled = true; jobs.delete(a.job); a.job.done(); }
+      const j = { kind: 'tween', a, from: a ? a.v : 0, to, ms, t: 0, ease, onUpdate, done: r };
+      if (a) { a.vel = 0; a.job = j; }
+      jobs.add(j);
+    });
+  }
+  function step(dt) {
+    for (const j of [...jobs]) {
+      if (j.kind === 'wait') {
+        j.t += dt; if (j.t >= j.ms) { jobs.delete(j); j.done(); }
+      } else if (j.kind === 'tween') {
+        j.t += dt;
+        const p = Math.min(1, j.t / j.ms), e = j.ease(p);
+        const v = j.from + (j.to - j.from) * e;
+        if (j.a) j.a.v = v;
+        if (j.onUpdate) j.onUpdate(e, v);
+        if (p >= 1) { jobs.delete(j); if (j.a) j.a.job = null; j.done(); }
+      } else {
+        const { a, to, z, k } = j, c = 2 * z * Math.sqrt(k);
+        let rem = dt / 1000;
+        while (rem > 0) {
+          const h = Math.min(rem, 1 / 240);
+          const acc = -k * (a.v - to) - c * a.vel;
+          a.vel += acc * h; a.v += a.vel * h; rem -= h;
+        }
+        if (Math.abs(a.v - to) < 0.01 && Math.abs(a.vel) < 0.05) {
+          a.v = to; a.vel = 0; jobs.delete(j); a.job = null; j.done();
+        }
+      }
+    }
+  }
+
+  // ---------- geometry (dp of the Fold8 cover screen, 444 wide) ----------
+  const W = 444, CAM = 222, TOP = 8, PILL_W = 108, PILL_H = 34, CIRCLE = 34, GAP = 8;
+  const CARD = { w: W - 28, h: 112, y: 40, r: 20 };
+  const slotX = CAM + PILL_W / 2 + GAP + CIRCLE / 2;
+
+  const m = { x: A(CAM), y: A(TOP), w: A(PILL_W), h: A(PILL_H), r: A(PILL_H / 2),
+              swell: A(1), sx: A(1), sy: A(1), sink: A(0) };
+  const s = { x: A(slotX), w: A(CIRCLE), r: A(CIRCLE / 2), arc: A(0), lL: A(0), lR: A(0), alpha: A(1) };
+  const ui = { expanded: A(0), collapsed: A(1), liquid: A(0) };
+  let isExpanded = false, busy = false, hasSecond = true, gooOn = true;
+
+  async function expand() {
+    busy = true; isExpanded = true;
+    const all = [];
+    all.push(tween(ui.liquid, 1, 90), tween(ui.collapsed, 0, 90));
+    all.push(tween(m.swell, 1.06, 90).then(() => spring(m.swell, 1, 0.7, 380)));
+    all.push(wait(70).then(() => spring(m.w, CARD.w, 0.68, 170)));
+    all.push(wait(110).then(() => spring(m.h, CARD.h, 0.74, 190)));
+    all.push(wait(70).then(() => spring(m.r, CARD.r, 1, 200)));
+    all.push(wait(130).then(() => spring(m.y, CARD.y, 1, 160)));
+    all.push(wait(300).then(() => tween(ui.expanded, 1, 220)));
+    if (hasSecond) all.push(wait(170).then(relay));
+    await Promise.all(all);
+    await tween(ui.liquid, 0, 160);
+    busy = false;
+  }
+
+  async function relay() {
+    const x0 = s.x.v, x1 = CAM, stretch = CIRCLE * 0.15;
+    await tween(null, 1, 360, fastOutSlowIn, p => {
+      const bump = Math.sin(Math.PI * p);
+      s.x.v = x0 + (x1 - x0) * p;
+      s.arc.v = -2 * bump;
+      s.lL.v = stretch * bump;
+    });
+    s.arc.v = 0; s.lL.v = 0;
+    await Promise.all([spring(s.w, PILL_W, 0.72, 360), spring(s.r, PILL_H / 2, 1, 360)]);
+  }
+
+  async function collapse() {
+    busy = true; isExpanded = false;
+    const all = [];
+    all.push(tween(ui.liquid, 1, 80), tween(ui.expanded, 0, 100));
+    const ret = 320, land = 60 + ret;
+    all.push(wait(60).then(() => tween(m.h, PILL_H, ret - 20, inward)));
+    all.push(wait(60).then(() => tween(m.y, TOP, ret - 40, inward)));
+    all.push(wait(60).then(() => tween(m.r, PILL_H / 2, ret - 20, inward)));
+    all.push(wait(90).then(() => tween(m.w, PILL_W, ret - 30, inward)));
+    if (hasSecond) all.push(wait(land - 140).then(squeezeAndPop));
+    all.push(wait(land).then(thud));
+    await Promise.all(all);
+    await tween(ui.liquid, 0, 140);
+    busy = false;
+  }
+
+  async function squeezeAndPop() {
+    const sq = s.w.v * 0.12;
+    await tween(null, 1, 90, fastOutSlowIn, v => { s.lL.v = -sq * v; s.lR.v = sq * 0.6 * v; });
+    const x0 = s.x.v;
+    const pops = [
+      spring(s.lL, 0, 0.6, 500), spring(s.lR, 0, 0.6, 500),
+      spring(s.w, CIRCLE, 0.6, 520), spring(s.r, CIRCLE / 2, 1, 520),
+    ];
+    const travel = spring(s.x, slotX, 0.55, 420);
+    // Outward arc follows the companion's progress toward its slot.
+    const arc = { kind: 'tween', a: null, from: 0, to: 1, ms: 1e9, t: 0, ease: t => t, done() {},
+      onUpdate() {
+        const span = slotX - x0, p = span ? Math.min(1, Math.max(0, (s.x.v - x0) / span)) : 1;
+        s.arc.v = s.x.job ? 3 * Math.sin(Math.PI * p) : 0;
+      } };
+    jobs.add(arc);
+    await Promise.all([...pops, travel]);
+    jobs.delete(arc); s.arc.v = 0;
+  }
+
+  async function thud() {
+    pulse();
+    const back = a => spring(a, a === m.sink ? 0 : 1, 0.55, 520);
+    await Promise.all([
+      tween(m.sink, 2.5, 70).then(() => back(m.sink)),
+      tween(m.sx, 1.08, 70).then(() => back(m.sx)),
+      tween(m.sy, 0.9, 70).then(() => back(m.sy)),
+      wait(40).then(() => tween(ui.collapsed, 1, 160)),
+    ]);
+  }
+
+  // A soft ring standing in for the haptic "thud" on the phone.
+  function pulse() {
+    if (navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} }
+  }
+
+  // ---------- rendering ----------
+  const $ = id => document.getElementById(id);
+  const svg = $('svg'), goo = $('goo'), blur = $('blur');
+  const elMain = $('main'), elStem = $('stem'), elSec = $('sec'), elHl = $('highlight');
+  const layer = $('layer');
+  layer.innerHTML = `
+    <div class="content" id="pillc">
+      <div class="chip avatar" id="pAvatar"></div>
+      <div class="chip dot" id="pDot"></div>
+    </div>
+    <div class="content" id="secc">
+      <div class="chip ring" id="sRing">⚡</div>
+      <div class="chip pct" id="sPct">86%</div>
+    </div>
+    <div class="content cardc" id="card">
+      <div class="hdr"><span><i class="app"></i>信息</span><span>12:38</span></div>
+      <div class="row"><div class="big" id="cAvatar"></div>
+        <div><div class="t">张三</div><div class="b">今晚七点一起吃饭吗？我在楼下等你</div></div>
+      </div>
+    </div>`;
+
+  function rect(el, cx, top, w, h, r, sw = 1, sh = 1) {
+    const ww = Math.max(0, w * sw), hh = Math.max(0, h * sh);
+    el.setAttribute('x', cx - ww / 2); el.setAttribute('y', top);
+    el.setAttribute('width', ww); el.setAttribute('height', hh);
+    el.setAttribute('rx', Math.min(r * Math.min(sw, sh), hh / 2, ww / 2));
+  }
+
+  function render() {
+    const scale = svg.getBoundingClientRect().width / W;
+    // Main surface: swell (centered) + landing squash/sink (anchored at the top)
+    const sw = m.swell.v * m.sx.v, sh = m.swell.v * m.sy.v;
+    const grow = m.h.v * (m.swell.v - 1) / 2;
+    const top = m.y.v + m.sink.v - grow;
+    rect(elMain, m.x.v, top, m.w.v, m.h.v, m.r.v, sw, sh);
+    // Droplet left at the camera, shrinking as the island stretches out
+    const prog = Math.min(1, Math.max(0, (m.h.v - PILL_H) / (CARD.h - PILL_H)));
+    const st = 1 - prog;
+    rect(elStem, CAM, TOP + PILL_H * (1 - st) / 2, PILL_W * st, PILL_H * st, PILL_H / 2 * st);
+    // Companion
+    elSec.style.opacity = hasSecond ? 1 : 0;
+    const secW = s.w.v + s.lL.v + s.lR.v;
+    rect(elSec, s.x.v + (s.lR.v - s.lL.v) / 2, TOP + s.arc.v, secW, CIRCLE, s.r.v);
+
+    const liquid = gooOn ? ui.liquid.v : 0;
+    if (liquid > 0.01) { blur.setAttribute('stdDeviation', (6 * liquid).toFixed(2)); goo.setAttribute('filter', 'url(#liquid)'); }
+    else goo.removeAttribute('filter');
+
+    rect(elHl, m.x.v, top + 0.75, m.w.v - 1.5, m.h.v - 1.5, m.r.v, sw, sh);
+    elHl.setAttribute('stroke-opacity', (0.16 * liquid).toFixed(3));
+
+    // Content layers: never stretched, only faded/blurred
+    const px = v => (v * scale) + 'px';
+    const pillc = $('pillc');
+    const ca = ui.collapsed.v;
+    pillc.style.cssText = `left:${px(m.x.v - PILL_W / 2)};top:${px(TOP + m.sink.v)};width:${px(PILL_W)};height:${px(PILL_H)};opacity:${ca};filter:blur(${(1 - ca) * 6}px)`;
+    const av = $('pAvatar'), dot = $('pDot');
+    av.style.cssText = `left:${px(PILL_H / 2 - 13)};top:${px(PILL_H / 2 - 13)};width:${px(26)};height:${px(26)}`;
+    dot.style.cssText = `left:${px(PILL_W - 22)};top:${px(PILL_H / 2 - 4)};width:${px(8)};height:${px(8)}`;
+
+    const secc = $('secc');
+    const pillness = Math.min(1, Math.max(0, (s.w.v - CIRCLE) / (PILL_W - CIRCLE)));
+    const sm = t => t * t * (3 - 2 * t);
+    const circleFace = 1 - sm(Math.min(1, pillness / 0.35));
+    const pillFace = sm(Math.min(1, Math.max(0, (pillness - 0.75) / 0.25)));
+    secc.style.cssText = `left:${px(s.x.v - s.w.v / 2)};top:${px(TOP + s.arc.v)};width:${px(s.w.v)};height:${px(CIRCLE)};opacity:${hasSecond ? 1 : 0}`;
+    const ring = $('sRing'), pct = $('sPct');
+    const ringLeft = pillFace > circleFace ? PILL_H / 2 - 11 : s.w.v / 2 - 11;
+    ring.style.cssText = `left:${px(ringLeft)};top:${px(CIRCLE / 2 - 11)};width:${px(22)};height:${px(22)};opacity:${Math.max(circleFace, pillFace)};font-size:${px(10)}`;
+    pct.style.cssText = `right:${px(12)};top:0;height:${px(CIRCLE)};opacity:${pillFace};font-size:${px(13)}`;
+
+    const card = $('card'), ea = ui.expanded.v;
+    card.style.cssText = `left:${px(m.x.v - CARD.w / 2 + 16)};top:${px(CARD.y + 14 + m.sink.v)};width:${px(CARD.w - 32)};opacity:${ea};filter:blur(${(1 - ea) * 8}px);transform:scale(${0.92 + 0.08 * ea});transform-origin:top center;font-size:${px(15)}`;
+    card.querySelector('.hdr').style.fontSize = px(13);
+    $('cAvatar').style.cssText = `width:${px(44)};height:${px(44)}`;
+  }
+
+  const params = new URLSearchParams(location.search);
+  if (params.has('capture')) {
+    // Frame-exact capture for the README GIF: time only advances when told to.
+    window.__capture = {
+      step(ms) { step(ms); render(); },
+      expand, collapse,
+      setSecond(v) { hasSecond = v; },
+    };
+    render();
+  } else {
+    let last = performance.now();
+    const frame = now => {
+      const dt = Math.min(50, now - last) / speed; last = now;
+      step(dt); render();
+      requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- controls ----------
+  async function toggle() {
+    if (busy) return;
+    if (isExpanded) await collapse(); else await expand();
+  }
+  let looping = false;
+  async function loop() {
+    looping = !looping;
+    $('play').textContent = looping ? '停止循环' : '自动循环';
+    while (looping) {
+      if (!busy) await toggle();
+      await wait(isExpanded ? 1400 : 1100);
+    }
+  }
+  $('toggle').addEventListener('click', toggle);
+  $('phone').addEventListener('click', toggle);
+  $('play').addEventListener('click', loop);
+  $('slow').addEventListener('change', e => { speed = e.target.checked ? 4 : 1; });
+  $('goo').addEventListener('change', e => { gooOn = e.target.checked; });
+  $('second').addEventListener('change', e => {
+    if (busy || isExpanded) { e.target.checked = hasSecond; return; }
+    hasSecond = e.target.checked;
+  });
+  if (params.has('autoplay')) loop();
+})();
+</script>
+</body>
+</html>
