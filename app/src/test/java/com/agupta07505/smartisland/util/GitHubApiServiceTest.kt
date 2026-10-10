@@ -49,4 +49,12 @@ class GitHubApiServiceTest {
         assertTrue(GitHubApiService.isNewerVersion("v5.1.0-beta", "5.0.0"))
         assertFalse(GitHubApiService.isNewerVersion("v5.0.0-rc1", "5.0.0"))
     }
+
+    @org.junit.Test
+    fun fold8EditionBuildsCompareBySuffix() {
+        assertTrue(GitHubApiService.isNewerVersion("v7.0.0-fold8.2", "7.0.0-fold8.1"))
+        org.junit.Assert.assertFalse(GitHubApiService.isNewerVersion("v7.0.0-fold8.1", "7.0.0-fold8.1"))
+        org.junit.Assert.assertFalse(GitHubApiService.isNewerVersion("v7.0.0-fold8.1", "7.0.0-fold8.2"))
+        assertTrue(GitHubApiService.isNewerVersion("v7.1.0-fold8.1", "7.0.0-fold8.9"))
+    }
 }

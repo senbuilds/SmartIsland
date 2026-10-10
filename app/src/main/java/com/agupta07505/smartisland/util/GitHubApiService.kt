@@ -263,8 +263,17 @@ object GitHubApiService {
             if (r > l) return true
             if (r < l) return false
         }
-        return false
+        // Same base version: compare edition builds ("7.0.0-fold8.2" > "7.0.0-fold8.1").
+        // Other suffixes (beta, rc1) are pre-releases and never count as newer.
+        val remoteBuild = editionBuild(remoteTag) ?: return false
+        val localBuild = editionBuild(localVersion) ?: return false
+        return remoteBuild > localBuild
     }
+
+    private val editionSuffix = Regex("-fold\\d+\\.(\\d+)$")
+
+    private fun editionBuild(version: String): Int? =
+        editionSuffix.find(version.trim())?.groupValues?.get(1)?.toIntOrNull()
 
     private fun makeHttpGet(urlString: String): String {
         val url = URL(urlString)
