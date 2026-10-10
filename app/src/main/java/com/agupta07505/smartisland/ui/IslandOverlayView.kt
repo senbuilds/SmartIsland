@@ -61,6 +61,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.runtime.mutableIntStateOf
@@ -408,6 +409,7 @@ fun IslandOverlayView(
                 // one edge lands on a pixel boundary and the other mid-pixel, so the top looks
                 // hard-cut while the bottom is soft.
                 val snap = liquidStrength == 0f
+                val surfacePath = Path()
                 fun surface(centerX: Float, top: Float, w: Float, h: Float, r: Float, scale: Float, alpha: Float = 1f) {
                     if (w <= 0f || h <= 0f || scale <= 0f || alpha <= 0f) return
                     val sw = w * scale
@@ -417,11 +419,13 @@ fun IslandOverlayView(
                         y = kotlin.math.round(y)
                         sh = kotlin.math.round(sh)
                     }
-                    drawRoundRect(
-                        color = surfaceColor.copy(alpha = surfaceColor.alpha * alpha),
-                        topLeft = Offset(centerX - sw / 2f, y),
-                        size = Size(sw, sh),
-                        cornerRadius = CornerRadius(minOf(r * scale, sh / 2f))
+                    val cr = minOf(r * scale, sh / 2f)
+                    // Capsules get Apple-style continuous ends; the smoothing fades out as the
+                    // corner radius drops toward the expanded card's, which stays circular.
+                    val smoothing = smoothStep(0.6f, 0.98f, if (sh > 0f) cr / (sh / 2f) else 0f)
+                    drawPath(
+                        path = continuousRoundRectPath(centerX - sw / 2f, y, sw, sh, cr, smoothing, surfacePath),
+                        color = surfaceColor.copy(alpha = surfaceColor.alpha * alpha)
                     )
                 }
                 val cx = size.width / 2f

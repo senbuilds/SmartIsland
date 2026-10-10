@@ -13,7 +13,7 @@ import org.json.JSONObject
 data class SmartIslandSettings(
     val enabled: Boolean = false,
     val width: Float = 112f,
-    val height: Float = 34f,
+    val height: Float = 36.67f,
     val xOffset: Float = 0f,
     val yOffset: Float = 12f,
     val cornerRadius: Float = 22f,

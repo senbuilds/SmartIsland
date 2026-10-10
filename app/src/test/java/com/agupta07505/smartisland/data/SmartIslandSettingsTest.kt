@@ -17,7 +17,7 @@ class SmartIslandSettingsTest {
         val settings = SmartIslandSettings.Default
         assertEquals(false, settings.enabled)
         assertEquals(112f, settings.width)
-        assertEquals(34f, settings.height)
+        assertEquals(36.67f, settings.height)
         assertEquals(0f, settings.xOffset)
         assertEquals(12f, settings.yOffset)
         assertEquals(22f, settings.cornerRadius)
