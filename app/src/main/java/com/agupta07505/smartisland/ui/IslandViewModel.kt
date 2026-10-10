@@ -211,7 +211,7 @@ class IslandViewModel(
 
     companion object {
         private const val TAG = "IslandViewModel"
-        private const val AUTO_COLLAPSE_DELAY_MS = 5000L
+        private const val AUTO_COLLAPSE_DELAY_MS = 15_000L
 
         fun provideFactory(
             settingsRepo: SmartIslandSettingsRepository,

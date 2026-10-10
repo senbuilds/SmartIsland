@@ -543,7 +543,7 @@ fun IslandOverlayView(
                                             currentIndex = currentSelectedIndex
                                         )
                                     } else if (isDragging && currentSettings.enableSwipeActions && dragOffset > swipeDownThreshold) {
-                                        val action = SwipeAction.fromId(currentSettings.swipeDownAction, SwipeAction.FloatingWindow)
+                                        val action = SwipeAction.fromId(currentSettings.swipeDownAction, SwipeAction.OpenApp)
                                         executeSwipeAction(
                                             action = action,
                                             currentNotification = currentNotification,
@@ -558,7 +558,7 @@ fun IslandOverlayView(
                                             notificationsSize = currentNotifications.size,
                                             currentIndex = currentSelectedIndex
                                         )
-                                    } else if (!isDragging || abs(dragOffset) < 10f * displayMetrics.density) {
+                                    } else if (!isDragging || (abs(dragAccumulatorY) < 10f * displayMetrics.density && abs(dragAccumulatorX) < 10f * displayMetrics.density)) {
                                         if (!isHoldRegistered) {
                                             if (currentNotification != null) {
                                                 currentOnOpenNotification(currentNotification)

@@ -93,8 +93,8 @@ class IslandViewModelTest {
         testDispatcher.scheduler.runCurrent()
         assertTrue(viewModel.isInputActive.value)
 
-        // Advance time past the 5000ms auto-collapse delay
-        testDispatcher.scheduler.advanceTimeBy(6000L)
+        // Advance time past the 15000ms auto-collapse delay
+        testDispatcher.scheduler.advanceTimeBy(16_000L)
         testDispatcher.scheduler.runCurrent()
 
         // Island should STILL be expanded because input is active!
@@ -105,8 +105,8 @@ class IslandViewModelTest {
         testDispatcher.scheduler.runCurrent()
         org.junit.Assert.assertFalse(viewModel.isInputActive.value)
 
-        // Advance 5000ms now that input is inactive
-        testDispatcher.scheduler.advanceTimeBy(5500L)
+        // Advance 15000ms now that input is inactive
+        testDispatcher.scheduler.advanceTimeBy(15_500L)
         testDispatcher.scheduler.runCurrent()
 
         // Island should now have auto-collapsed

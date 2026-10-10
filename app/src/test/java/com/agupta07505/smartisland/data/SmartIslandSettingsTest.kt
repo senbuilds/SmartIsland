@@ -51,7 +51,7 @@ class SmartIslandSettingsTest {
         assertEquals(true, settings.enableSwipeActions)
         assertEquals("Collapse", settings.swipeUpAction)
         assertEquals("Collapse", settings.swipeHoldUpAction)
-        assertEquals("FloatingWindow", settings.swipeDownAction)
+        assertEquals("OpenApp", settings.swipeDownAction)
         assertEquals("Expand", settings.swipeDownCollapsedAction)
         assertEquals("NextPrevious", settings.swipeHorizontalCollapsedAction)
         assertEquals(true, settings.enablePillSwipeActions)

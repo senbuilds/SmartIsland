@@ -69,7 +69,7 @@ data class SmartIslandSettings(
     val enableSwipeActions: Boolean = true,
     val swipeUpAction: String = "Collapse",
     val swipeHoldUpAction: String = "Collapse",
-    val swipeDownAction: String = "FloatingWindow",
+    val swipeDownAction: String = "OpenApp",
     val swipeDownCollapsedAction: String = "Expand",
     val swipeHorizontalCollapsedAction: String = "NextPrevious",
     val enablePillSwipeActions: Boolean = true,

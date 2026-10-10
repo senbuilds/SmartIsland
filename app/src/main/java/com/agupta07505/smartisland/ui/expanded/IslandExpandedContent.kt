@@ -12,7 +12,11 @@ package com.agupta07505.smartisland.ui.expanded
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
+import androidx.compose.ui.input.pointer.positionChangeIgnoreConsumed
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.composed
@@ -227,7 +231,10 @@ fun IslandExpandedContent(
             HorizontalPager(
                 state = pagerState,
                 // iOS style: horizontal swipes on a plain notification dismiss it instead of paging
-                userScrollEnabled = notifications.getOrNull(pagerState.currentPage)?.mode != IslandMode.Notification,
+                // Check the target and selected pages too: while the pager animates to a newly
+                // arrived notification, currentPage still points at the previous page.
+                userScrollEnabled = listOf(pagerState.currentPage, pagerState.targetPage, selectedIndex)
+                    .none { notifications.getOrNull(it)?.mode == IslandMode.Notification },
                 modifier = Modifier
                     .fillMaxWidth()
                     // unbounded = true: pages measure at natural height even when parent Box has explicit height
@@ -472,27 +479,55 @@ private fun Modifier.swipeToDismiss(key: String, onDismissed: () -> Unit): Modif
     this
         .onSizeChanged { width = it.width.toFloat().coerceAtLeast(1f) }
         .pointerInput(key) {
-            val velocityTracker = VelocityTracker()
-            detectHorizontalDragGestures(
-                onDragStart = { velocityTracker.resetTracking() },
-                onDragEnd = {
-                    val velocity = velocityTracker.calculateVelocity().x
-                    val flung = abs(velocity) > 1200f && sign(velocity) == sign(offsetX.value)
-                    scope.launch {
-                        if (abs(offsetX.value) > width * 0.35f || flung) {
-                            val target = if (offsetX.value >= 0f) width else -width
-                            offsetX.animateTo(target, tween(180))
-                            onDismissed()
-                        } else {
-                            offsetX.animateTo(0f, spring(dampingRatio = 0.75f))
+            // Runs on the Initial pass so it sees the gesture before the island's own
+            // tap / vertical-swipe handler; horizontal drags are claimed and consumed here.
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                val velocityTracker = VelocityTracker()
+                velocityTracker.addPosition(down.uptimeMillis, down.position)
+                val slop = viewConfiguration.touchSlop
+                var totalX = 0f
+                var totalY = 0f
+                var dragging = false
+                while (true) {
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                    if (change.changedToUpIgnoreConsumed()) {
+                        if (dragging) {
+                            change.consume()
+                            val velocity = velocityTracker.calculateVelocity().x
+                            val flung = abs(velocity) > 1200f && sign(velocity) == sign(offsetX.value)
+                            scope.launch {
+                                if (abs(offsetX.value) > width * 0.35f || flung) {
+                                    val target = if (offsetX.value >= 0f) width else -width
+                                    offsetX.animateTo(target, tween(180))
+                                    onDismissed()
+                                } else {
+                                    offsetX.animateTo(0f, spring(dampingRatio = 0.75f))
+                                }
+                            }
+                        }
+                        break
+                    }
+                    val delta = change.positionChangeIgnoreConsumed()
+                    velocityTracker.addPosition(change.uptimeMillis, change.position)
+                    if (!dragging) {
+                        totalX += delta.x
+                        totalY += delta.y
+                        if (abs(totalX) > slop && abs(totalX) > abs(totalY)) {
+                            dragging = true
+                        } else if (abs(totalY) > slop) {
+                            break // vertical: leave it to the island's swipe-up / swipe-down actions
                         }
                     }
-                },
-                onDragCancel = { scope.launch { offsetX.animateTo(0f, spring()) } }
-            ) { change, dragAmount ->
-                change.consume()
-                velocityTracker.addPosition(change.uptimeMillis, change.position)
-                scope.launch { offsetX.snapTo(offsetX.value + dragAmount) }
+                    if (dragging) {
+                        change.consume()
+                        scope.launch { offsetX.snapTo(offsetX.value + delta.x) }
+                    }
+                }
+                if (!dragging && offsetX.value != 0f) {
+                    scope.launch { offsetX.animateTo(0f, spring()) }
+                }
             }
         }
         .graphicsLayer {
