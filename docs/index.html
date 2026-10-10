@@ -255,7 +255,9 @@
 
   // ---------- geometry (dp of the Fold8 cover screen, 444 wide) ----------
   const W = 444, CAM = 222, TOP = 8, PILL_W = 108, PILL_H = 34, CIRCLE = 34, GAP = 8;
-  const CARD = { w: W - 28, h: 112, y: 40, r: 20 };
+  // As on the phone: the expanded card rests below the status bar, 8dp under the pill
+  // that stays over the camera; the two are separate shapes once the motion settles.
+  const CARD = { w: W - 28, h: 112, y: TOP + PILL_H + 8, r: 20 };
   const slotX = CAM + PILL_W / 2 + GAP + CIRCLE / 2;
 
   const m = { x: A(CAM), y: A(TOP), w: A(PILL_W), h: A(PILL_H), r: A(PILL_H / 2),
@@ -275,8 +277,10 @@
     all.push(wait(130).then(() => spring(m.y, CARD.y, 1, 160)));
     all.push(wait(300).then(() => tween(ui.expanded, 1, 220)));
     if (hasSecond) all.push(wait(170).then(relay));
+    // The neck only lives while the shapes are close: once the card has dropped below
+    // the pill and the companion has arrived, they separate (as on the phone).
+    all.push(wait(480).then(() => tween(ui.liquid, 0, 160)));
     await Promise.all(all);
-    await tween(ui.liquid, 0, 160);
     busy = false;
   }
 
