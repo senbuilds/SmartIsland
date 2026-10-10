@@ -9,6 +9,20 @@
 
 package com.agupta07505.smartisland.ui.expanded
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.composed
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import com.agupta07505.smartisland.data.SmartIslandCommand
+import com.agupta07505.smartisland.di.SmartIslandRepositories
+import kotlin.math.abs
+import kotlin.math.sign
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -118,6 +132,7 @@ fun IslandExpandedContent(
         pageHeights = pageHeights.filterKeys { it in activeKeys }
     }
 
+    val context = LocalContext.current
     val pagerState = rememberPagerState(
         initialPage = selectedIndex.coerceIn(0, notifications.lastIndex),
         pageCount = { notifications.size }
@@ -165,7 +180,7 @@ fun IslandExpandedContent(
         fun clampHeightForMode(notif: IslandNotification?, height: Dp): Dp {
             return when (notif?.mode) {
                 IslandMode.Battery, IslandMode.IncomingCall -> height.coerceIn(72.dp, 125.dp)
-                IslandMode.Notification -> height.coerceIn(95.dp, 145.dp)
+                IslandMode.Notification -> height.coerceIn(84.dp, 200.dp)
                 IslandMode.Music -> height.coerceIn(115.dp, 180.dp)
                 IslandMode.LiveActivity -> height.coerceIn(140.dp, 205.dp)
                 IslandMode.Navigation -> height.coerceIn(135.dp, 195.dp)
@@ -211,6 +226,8 @@ fun IslandExpandedContent(
         ) {
             HorizontalPager(
                 state = pagerState,
+                // iOS style: horizontal swipes on a plain notification dismiss it instead of paging
+                userScrollEnabled = notifications.getOrNull(pagerState.currentPage)?.mode != IslandMode.Notification,
                 modifier = Modifier
                     .fillMaxWidth()
                     // unbounded = true: pages measure at natural height even when parent Box has explicit height
@@ -228,6 +245,16 @@ fun IslandExpandedContent(
                                     pageHeights = pageHeights.toMutableMap().apply { put(notification.key, heightDp) }
                                 }
                             }
+                            .then(
+                                if (notification.mode == IslandMode.Notification) {
+                                    Modifier.swipeToDismiss(notification.key) {
+                                        val repo = SmartIslandRepositories.notificationRepository(context)
+                                        repo.removeNotification(notification.key)
+                                        repo.sendCommand(SmartIslandCommand.CancelNotification(notification.key))
+                                        onCollapse()
+                                    }
+                                } else Modifier
+                            )
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null
@@ -235,7 +262,7 @@ fun IslandExpandedContent(
                                 onOpenNotification(notification)
                             }
                     ) {
-                        if (settings.enableNotificationBackdrop && notification.mode != IslandMode.Music) {
+                        if (settings.enableNotificationBackdrop && notification.mode != IslandMode.Music && notification.mode != IslandMode.Notification) {
                             NotificationBackdrop(
                                 notification = notification,
                                 settings = settings,
@@ -436,6 +463,42 @@ private fun ShortcutApp(app: LaunchableApp, onClick: () -> Unit) {
             maxLines = 1
         )
     }
+}
+
+private fun Modifier.swipeToDismiss(key: String, onDismissed: () -> Unit): Modifier = composed {
+    val offsetX = remember(key) { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    var width by remember { mutableFloatStateOf(1f) }
+    this
+        .onSizeChanged { width = it.width.toFloat().coerceAtLeast(1f) }
+        .pointerInput(key) {
+            val velocityTracker = VelocityTracker()
+            detectHorizontalDragGestures(
+                onDragStart = { velocityTracker.resetTracking() },
+                onDragEnd = {
+                    val velocity = velocityTracker.calculateVelocity().x
+                    val flung = abs(velocity) > 1200f && sign(velocity) == sign(offsetX.value)
+                    scope.launch {
+                        if (abs(offsetX.value) > width * 0.35f || flung) {
+                            val target = if (offsetX.value >= 0f) width else -width
+                            offsetX.animateTo(target, tween(180))
+                            onDismissed()
+                        } else {
+                            offsetX.animateTo(0f, spring(dampingRatio = 0.75f))
+                        }
+                    }
+                },
+                onDragCancel = { scope.launch { offsetX.animateTo(0f, spring()) } }
+            ) { change, dragAmount ->
+                change.consume()
+                velocityTracker.addPosition(change.uptimeMillis, change.position)
+                scope.launch { offsetX.snapTo(offsetX.value + dragAmount) }
+            }
+        }
+        .graphicsLayer {
+            translationX = offsetX.value
+            alpha = 1f - (abs(offsetX.value) / width).coerceIn(0f, 1f) * 0.8f
+        }
 }
 
 @Composable

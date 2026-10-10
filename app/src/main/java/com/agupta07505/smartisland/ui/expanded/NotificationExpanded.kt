@@ -60,6 +60,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -105,84 +106,97 @@ fun NotificationExpanded(
         modifier = Modifier
             .fillMaxWidth()
             .wrapContentHeight()
-            .padding(start = 18.dp, top = 20.dp, end = 18.dp, bottom = bottomPadding),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+            .padding(start = 16.dp, top = 14.dp, end = 16.dp, bottom = bottomPadding),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        val largeIcon = notification?.largeIcon
+        val icon = notification?.icon
+
+        // Header: app identity on the leading side, time on the trailing side
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                if (icon != null) {
+                    Image(
+                        bitmap = icon.asImageBitmap(),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(18.dp)
+                            .clip(RoundedCornerShape(5.dp))
+                    )
+                }
+                Text(
+                    text = notification?.appName.orEmpty(),
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = notification?.let { formatNotificationTime(it.timeMillis) } ?: "",
+                color = Color.White.copy(alpha = 0.6f),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                textAlign = TextAlign.End,
+                modifier = Modifier.weight(1f)
+            )
+        }
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val largeIcon = notification?.largeIcon
-            val icon = notification?.icon
             val mainIcon = largeIcon ?: icon
             if (mainIcon != null) {
-                val clipShape = if (largeIcon != null) CircleShape else RoundedCornerShape(8.dp)
-                Box(modifier = Modifier.size(42.dp)) {
-                    Image(
-                        bitmap = mainIcon.asImageBitmap(),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(clipShape)
-                    )
-                    if (largeIcon != null && icon != null) {
-                        Box(
-                            modifier = Modifier
-                                .size(16.dp)
-                                .align(Alignment.BottomEnd)
-                                .background(Color.Black, CircleShape)
-                                .padding(1.5.dp)
-                        ) {
-                            Image(
-                                bitmap = icon.asImageBitmap(),
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(CircleShape)
-                            )
-                        }
-                    }
-                }
+                Image(
+                    bitmap = mainIcon.asImageBitmap(),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(if (largeIcon != null) CircleShape else RoundedCornerShape(11.dp))
+                )
             } else {
                 Box(
                     modifier = Modifier
-                        .size(42.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(11.dp))
                         .background(Color(settings.notificationDotColor)),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(notification?.appName?.firstOrNull()?.uppercase() ?: "S", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             }
-            Column(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     text = notification?.title?.takeIf { it.isNotBlank() } ?: notification?.appName ?: "Notification",
                     color = Color.White,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    fontSize = 17.sp,
+                    fontSize = 16.sp,
                     lineHeight = 20.sp,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
                     text = notification?.text?.takeIf { it.isNotBlank() } ?: "New activity",
-                    color = Color(0xFFD5DAE0),
-                    minLines = 2,
+                    color = Color.White.copy(alpha = 0.6f),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    fontSize = 13.sp,
-                    lineHeight = 16.sp
+                    fontSize = 15.sp,
+                    lineHeight = 19.sp,
+                    fontWeight = FontWeight.Medium
                 )
             }
-
-            // Time text on top right using the internal helper in IslandCollapsedContent
-            Text(
-                text = notification?.let { formatNotificationTime(it.timeMillis) } ?: "",
-                color = Color(0xFFB7C0CA),
-                fontSize = 11.sp,
-                modifier = Modifier.padding(start = 8.dp)
-            )
         }
 
         // Bottom Section: Inline Quick Reply OR Action Buttons
@@ -235,7 +249,7 @@ fun NotificationExpanded(
                         .weight(1f)
                         .height(36.dp)
                         .clip(RoundedCornerShape(18.dp))
-                        .background(Color(0xFF222222))
+                        .background(Color.White.copy(alpha = 0.15f))
                         .padding(horizontal = 14.dp),
                     contentAlignment = Alignment.CenterStart
                 ) {
@@ -298,7 +312,7 @@ fun NotificationExpanded(
                     modifier = Modifier
                         .size(36.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF222222))
+                        .background(Color.White.copy(alpha = 0.15f))
                         .bounceClick {
                             isReplying = false
                             onReplyStateChanged(false)
@@ -314,26 +328,21 @@ fun NotificationExpanded(
                     )
                 }
             }
-        } else {
+        } else if (showActions && notification != null && notification.actionIntents.isNotEmpty()) {
+            // Tapping the card opens the app, so only render a row when there are actions
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Left part of Bottom Section: Action Buttons Row
-                if (showActions && notification != null && notification.actionIntents.isNotEmpty()) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        notification.actionIntents.forEach { action ->
+                        notification.actionIntents.take(3).forEach { action ->
                             val isReplyAction = action.isQuickReply || action.title.lowercase().contains("reply")
                             Box(
                                 modifier = Modifier
-                                    .height(28.dp)
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(Color(0xFFE2E8F0)) // light grey background matching the Telegram button
+                                    .weight(1f)
+                                    .height(34.dp)
+                                    .clip(RoundedCornerShape(17.dp))
+                                    .background(Color.White.copy(alpha = 0.15f))
                                     .bounceClick {
                                         if (isReplyAction) {
                                             isReplying = true
@@ -354,33 +363,14 @@ fun NotificationExpanded(
                             ) {
                                 Text(
                                     text = action.title,
-                                    color = Color(0xFF1F2937), // dark grey text
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Medium
+                                    color = Color.White,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
-                    }
-                } else {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
-
-                // Down Arrow Button on bottom right
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF222222))
-                        .bounceClick { onOpenNotification() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.KeyboardArrowDown,
-                        contentDescription = "Open App",
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
             }
         }
     }

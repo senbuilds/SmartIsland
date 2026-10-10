@@ -131,6 +131,12 @@ fun IslandOverlayView(
     val scope = rememberCoroutineScope()
     var dragOffset by remember { mutableStateOf(0f) }
     var pillDragOffsetX by remember { mutableStateOf(0f) }
+    // A pill swipe can expand/collapse the island mid-gesture, which cancels the gesture
+    // before its spring-back runs; never carry a stale drag offset across a state change.
+    LaunchedEffect(expanded, notifications.size) {
+        pillDragOffsetX = 0f
+        dragOffset = 0f
+    }
 
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
@@ -238,8 +244,11 @@ fun IslandOverlayView(
     val isHiding = isIdleHiding || (settings.autoHidePill && isAutoHidden)
     val pillBackgroundColor = Color(settings.pillColor)
 
+    // A plain notification expands below the status bar with even side margins. The Fold
+    // cover screen has nearly square corners (~9dp), so a large iOS-style radius looks off.
+    val isIosNotification = activeMode == IslandMode.Notification && !settings.enableNotchMode && !isLandscape
     val width by transition.animateDp(transitionSpec = { sizeSpec }, label = "islandWidth") {
-        if (it) expandedWidth else if (isHiding) 0.dp else settings.width.dp
+        if (it) (if (isIosNotification) screenWidth - IOS_EXPANDED_SIDE_MARGIN_DP.dp * 2 else expandedWidth) else if (isHiding) 0.dp else settings.width.dp
     }
     val height by transition.animateDp(transitionSpec = { heightSpec }, label = "islandHeight") {
         if (it) expandedHeight else if (isHiding) 0.dp else settings.height.dp
@@ -248,7 +257,7 @@ fun IslandOverlayView(
         if (it) expandedTopOffset else 0.dp
     }
     val radius by transition.animateDp(transitionSpec = { sizeSpec }, label = "islandRadius") {
-        if (it) 34.dp else if (isHiding) 0.dp else settings.cornerRadius.dp
+        if (it) (if (isIosNotification) IOS_EXPANDED_CORNER_DP.dp else 34.dp) else if (isHiding) 0.dp else settings.cornerRadius.dp
     }
     val animatedXOffset by transition.animateDp(transitionSpec = { sizeSpec }, label = "islandXOffset") {
         if (it) 0.dp else collapsedMainOffset
@@ -1133,6 +1142,8 @@ internal fun calculateSecondaryExpandedOffset(
     }
 }
 private const val SWIPE_THRESHOLD_DP = 35f
+private const val IOS_EXPANDED_SIDE_MARGIN_DP = 14f
+private const val IOS_EXPANDED_CORNER_DP = 20f
 private const val PILL_SWIPE_THRESHOLD_DP = 16f
 private const val DRAG_MAX_OFFSET_DP = 100f
 private const val COMPACT_INDICATOR_GAP_DP = 8f

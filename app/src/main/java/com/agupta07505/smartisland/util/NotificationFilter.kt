@@ -160,6 +160,8 @@ object NotificationFilter {
 
     private fun isSystemLevelPackage(packageName: String, packageManager: PackageManager): Boolean {
         if (packageName in SYSTEM_LEVEL_PACKAGES) return true
+        // Debug builds accept `adb shell cmd notification post` so the island UI can be tested
+        if (com.agupta07505.smartisland.BuildConfig.DEBUG && packageName == "com.android.shell") return false
 
         // User-facing apps (Chrome, DownloadManager, Play Store) are not internal OS components
         if (packageName == "com.android.chrome" ||
