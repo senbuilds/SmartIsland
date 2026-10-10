@@ -65,7 +65,13 @@ class SmartIslandOverlayService : AccessibilityService() {
     private lateinit var windowManager: WindowManager
     @Inject lateinit var repository: SmartIslandSettingsRepository
     @Inject lateinit var notificationRepository: INotificationRepository
+    // Two windows: islandView draws the island in a full-screen, never-resized,
+    // non-touchable window; touchView is an invisible window over the island that
+    // resizes freely and forwards touches. Resizing a window that draws makes
+    // WindowManager show the previous buffer at the new origin for a frame (a flash).
     private var islandView: ComposeView? = null
+    private var touchView: android.view.View? = null
+    private var visualWindowState: Triple<Boolean, Int, Int>? = null
     private val overlayOwners = OverlayViewTreeOwners()
     private lateinit var systemEventReceiver: SystemEventReceiver
     private lateinit var viewModel: IslandViewModel
@@ -489,7 +495,8 @@ class SmartIslandOverlayService : AccessibilityService() {
                             performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS)
                             viewModel.collapse()
                         },
-                        isFullWidth = fullWidth,
+                        // The drawing window always spans the screen.
+                        isFullWidth = true,
                         cameraAnchor = anchor
                     )
                 }
@@ -497,7 +504,12 @@ class SmartIslandOverlayService : AccessibilityService() {
                 setupTouchableRegion(this)
             }
             runCatchingLogged(TAG, "windowManager.addView failed") {
-                windowManager.addView(islandView, collapsedParams(viewModel.settings.value))
+                val settings = viewModel.settings.value
+                windowManager.addView(islandView, visualParams(settings, focusable = false, softInputMode = 0))
+                visualWindowState = Triple(false, 0, visualY(settings))
+                val touch = createTouchForwarder()
+                windowManager.addView(touch, collapsedParams(settings))
+                touchView = touch
             } ?: run {
                 islandView = null
             }
@@ -625,6 +637,7 @@ class SmartIslandOverlayService : AccessibilityService() {
     private fun updateWindowLayoutParams(expanded: Boolean, settings: SmartIslandSettings) {
         if (destroyed || !::windowManager.isInitialized || !::viewModel.isInitialized) return
         val view = islandView ?: return
+        val touch = touchView ?: return
         val density = resources.displayMetrics.density
         val screenWidthPx = resources.displayMetrics.widthPixels.toFloat()
         
@@ -640,6 +653,9 @@ class SmartIslandOverlayService : AccessibilityService() {
         val targetVisibility = if (isHidden) android.view.View.GONE else android.view.View.VISIBLE
         if (view.visibility != targetVisibility) {
             view.visibility = targetVisibility
+        }
+        if (touch.visibility != targetVisibility) {
+            touch.visibility = targetVisibility
         }
 
         val mainWidthPx = settings.width * density
@@ -683,14 +699,17 @@ class SmartIslandOverlayService : AccessibilityService() {
             0
         }
 
+        updateVisualWindow(view, settings, isInput, currentSoftInputMode)
+
+        // The touch window never takes focus; keyboard focus belongs to the drawing window.
+        val touchFlags = currentFlags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
         val lp = lastParams
         if (lp != null &&
             lp.width == w &&
             lp.height == h &&
-            lp.flags == currentFlags &&
+            lp.flags == touchFlags &&
             lp.x == currentX &&
-            lp.y == currentY &&
-            lp.softInputMode == currentSoftInputMode
+            lp.y == currentY
         ) {
             return
         }
@@ -699,56 +718,70 @@ class SmartIslandOverlayService : AccessibilityService() {
             w,
             h,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            currentFlags,
+            touchFlags,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
             x = currentX
             y = currentY
-            softInputMode = currentSoftInputMode
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
             }
         }
-        val geometryChanged = lp != null && (lp.width != w || lp.x != currentX)
         lastParams = params
-        if (geometryChanged) {
-            resizeWithoutStaleFrame(view)
-        } else {
-            runCatchingLogged(TAG, "Failed to update view layout") {
-                windowManager.updateViewLayout(view, params)
-            }
+        runCatchingLogged(TAG, "Failed to update touch window") {
+            windowManager.updateViewLayout(touch, params)
         }
     }
 
-    /**
-     * When the window changes width/position, WindowManager briefly shows the old buffer at
-     * the new window origin, so the pill flashes off to one side for a frame. Draw one
-     * transparent frame first, resize, and reveal again once the new size is laid out.
-     */
-    private fun resizeWithoutStaleFrame(view: ComposeView) {
-        view.alpha = 0f
-        val choreographer = android.view.Choreographer.getInstance()
-        // Two frames: the first draws the transparent buffer, the second resizes.
-        choreographer.postFrameCallback {
-            choreographer.postFrameCallback {
-                if (islandView !== view) return@postFrameCallback
-                val params = lastParams ?: return@postFrameCallback
-                view.addOnLayoutChangeListener(object : android.view.View.OnLayoutChangeListener {
-                    override fun onLayoutChange(
-                        v: android.view.View, l: Int, t: Int, r: Int, b: Int,
-                        ol: Int, ot: Int, or: Int, ob: Int
-                    ) {
-                        v.removeOnLayoutChangeListener(this)
-                        v.alpha = 1f
-                    }
-                })
-                runCatchingLogged(TAG, "Failed to update view layout") {
-                    windowManager.updateViewLayout(view, params)
-                }
-                // Never leave the island invisible if no layout pass arrives.
-                view.postDelayed({ view.alpha = 1f }, 150L)
+    private fun visualY(settings: SmartIslandSettings): Int =
+        if (settings.enableNotchMode) 0 else settings.yOffset.dpToPx()
+
+    /** Full-screen, never-resized drawing window; only focus/soft-input ever change. */
+    private fun visualParams(settings: SmartIslandSettings, focusable: Boolean, softInputMode: Int) =
+        WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                (if (focusable) 0 else WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE) or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            y = visualY(settings)
+            this.softInputMode = softInputMode
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
             }
+        }
+
+    private fun updateVisualWindow(view: ComposeView, settings: SmartIslandSettings, focusable: Boolean, softInputMode: Int) {
+        val state = Triple(focusable, softInputMode, visualY(settings))
+        if (state == visualWindowState) return
+        visualWindowState = state
+        runCatchingLogged(TAG, "Failed to update island window") {
+            windowManager.updateViewLayout(view, visualParams(settings, focusable, softInputMode))
+        }
+    }
+
+    /** Invisible window over the island: forwards its touches to the drawing window. */
+    private fun createTouchForwarder(): android.view.View = object : android.view.View(this) {
+        private val from = IntArray(2)
+        private val to = IntArray(2)
+
+        override fun dispatchTouchEvent(event: android.view.MotionEvent): Boolean {
+            val target = islandView ?: return false
+            getLocationOnScreen(from)
+            target.getLocationOnScreen(to)
+            val forwarded = android.view.MotionEvent.obtain(event)
+            forwarded.offsetLocation((from[0] - to[0]).toFloat(), (from[1] - to[1]).toFloat())
+            target.dispatchTouchEvent(forwarded)
+            forwarded.recycle()
+            return true
         }
     }
 
@@ -782,8 +815,11 @@ class SmartIslandOverlayService : AccessibilityService() {
         val view = islandView ?: return
         // Clear the reference before removal so repeated teardown calls are harmless,
         // even when an OEM WindowManager throws while detaching an already-removed view.
+        val touch = touchView
         islandView = null
+        touchView = null
         lastParams = null
+        visualWindowState = null
         isWindowExpanded = false
         collapseJob?.cancel()
         collapseJob = null
@@ -791,6 +827,13 @@ class SmartIslandOverlayService : AccessibilityService() {
         runCatchingLogged(TAG, "Failed to remove view") {
             if (view.isAttachedToWindow) {
                 windowManager.removeViewImmediate(view)
+            }
+        }
+        if (touch != null) {
+            runCatchingLogged(TAG, "Failed to remove touch window") {
+                if (touch.isAttachedToWindow) {
+                    windowManager.removeViewImmediate(touch)
+                }
             }
         }
     }
