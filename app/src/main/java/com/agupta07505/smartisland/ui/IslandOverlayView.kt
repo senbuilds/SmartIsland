@@ -527,7 +527,7 @@ fun IslandOverlayView(
                                     if (isDragging && currentSettings.enableSwipeActions && dragOffset < swipeUpThreshold) {
                                         val isHold = isHoldRegistered || totalElapsedMs >= HOLD_GESTURE_THRESHOLD_MS
                                         val actionStr = if (isHold) currentSettings.swipeHoldUpAction else currentSettings.swipeUpAction
-                                        val action = SwipeAction.fromId(actionStr, if (isHold) SwipeAction.DismissAll else SwipeAction.DismissCurrent)
+                                        val action = SwipeAction.fromId(actionStr, SwipeAction.Collapse)
                                         executeSwipeAction(
                                             action = action,
                                             currentNotification = currentNotification,
@@ -613,7 +613,7 @@ fun IslandOverlayView(
                                                 }
                                             } else {
                                                 if (dragAccumulatorY < -pillThreshold) {
-                                                    val action = SwipeAction.fromId(currentSettings.pillSwipeUpAction, SwipeAction.DismissCurrent)
+                                                    val action = SwipeAction.fromId(currentSettings.pillSwipeUpAction, SwipeAction.None)
                                                     executeSwipeAction(
                                                         action = action,
                                                         currentNotification = currentNotification,
@@ -733,7 +733,7 @@ fun IslandOverlayView(
                                                     }
                                                 } else {
                                                     if (dragAccumulatorY < -pillThreshold) {
-                                                        val action = SwipeAction.fromId(currentSettings.pillSwipeUpAction, SwipeAction.DismissCurrent)
+                                                        val action = SwipeAction.fromId(currentSettings.pillSwipeUpAction, SwipeAction.None)
                                                         executeSwipeAction(
                                                             action = action,
                                                             currentNotification = currentNotification,
