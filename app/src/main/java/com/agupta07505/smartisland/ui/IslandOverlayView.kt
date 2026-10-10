@@ -29,6 +29,8 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.positionChange
 import kotlin.math.abs
+import kotlin.math.sign
+import kotlin.math.exp
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Box
@@ -146,7 +148,6 @@ fun IslandOverlayView(
     // before its spring-back runs; never carry a stale drag offset across a state change.
     LaunchedEffect(expanded, notifications.size) {
         pillDragOffsetX = 0f
-        dragOffset = 0f
     }
 
     val context = LocalContext.current
@@ -461,9 +462,11 @@ fun IslandOverlayView(
     ) {
 
         if (useLiquid) {
+            val liquidHeight = maxOf(yOffset + safeHeight, circleSize) + LIQUID_MAX_BLUR_DP.dp * 3 + 24.dp
             Canvas(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .fillMaxWidth()
+                    .height(liquidHeight)
                     .graphicsLayer {
                         val blurPx = LIQUID_MAX_BLUR_DP.dp.toPx() * liquidStrength
                         renderEffect = if (blurPx > 0.5f) liquidRenderEffect(blurPx) else null
@@ -634,7 +637,7 @@ fun IslandOverlayView(
                                 if (wasExpandedAtStart) {
                                     val swipeUpThreshold = -SWIPE_THRESHOLD_DP * displayMetrics.density
                                     val swipeDownThreshold = SWIPE_THRESHOLD_DP * displayMetrics.density
-                                    if (isDragging && currentSettings.enableSwipeActions && dragOffset < swipeUpThreshold) {
+                                    if (isDragging && currentSettings.enableSwipeActions && dragAccumulatorY < swipeUpThreshold) {
                                         val isHold = isHoldRegistered || totalElapsedMs >= HOLD_GESTURE_THRESHOLD_MS
                                         val actionStr = if (isHold) currentSettings.swipeHoldUpAction else currentSettings.swipeUpAction
                                         val action = SwipeAction.fromId(actionStr, SwipeAction.Collapse)
@@ -652,7 +655,7 @@ fun IslandOverlayView(
                                             notificationsSize = currentNotifications.size,
                                             currentIndex = currentSelectedIndex
                                         )
-                                    } else if (isDragging && currentSettings.enableSwipeActions && dragOffset > swipeDownThreshold) {
+                                    } else if (isDragging && currentSettings.enableSwipeActions && dragAccumulatorY > swipeDownThreshold) {
                                         val action = SwipeAction.fromId(currentSettings.swipeDownAction, SwipeAction.OpenApp)
                                         executeSwipeAction(
                                             action = action,
@@ -782,10 +785,11 @@ fun IslandOverlayView(
                                         holdJob.cancel()
                                     }
                                     if (wasExpandedAtStart) {
-                                        dragOffset = dragAccumulatorY.coerceIn(
-                                            -DRAG_MAX_OFFSET_DP * displayMetrics.density,
-                                            DRAG_MAX_OFFSET_DP * displayMetrics.density
-                                        )
+                                        // Rubber band: the card leans toward the finger but never
+                                        // travels far enough to cover the status bar.
+                                        val maxPull = EXPANDED_DRAG_PULL_DP * displayMetrics.density
+                                        dragOffset = sign(dragAccumulatorY) * maxPull *
+                                            (1f - exp(-abs(dragAccumulatorY) / (maxPull * 3f)))
                                     } else {
                                         pillDragOffsetX = (dragAccumulatorX * 0.35f).coerceIn(
                                             -24f * displayMetrics.density,
@@ -1255,7 +1259,7 @@ internal fun calculateSecondaryExpandedOffset(
     }
 }
 private const val SWIPE_THRESHOLD_DP = 35f
-private const val LIQUID_MAX_BLUR_DP = 9f
+private const val LIQUID_MAX_BLUR_DP = 6f
 private const val FULL_WINDOW_MIN_HEIGHT_DP = 200f
 private const val CONTENT_MAX_BLUR_DP = 10f
 
@@ -1284,6 +1288,7 @@ private const val IOS_EXPANDED_SIDE_MARGIN_DP = 14f
 private const val IOS_EXPANDED_CORNER_DP = 20f
 private const val PILL_SWIPE_THRESHOLD_DP = 16f
 private const val DRAG_MAX_OFFSET_DP = 100f
+private const val EXPANDED_DRAG_PULL_DP = 24f
 private const val COMPACT_INDICATOR_GAP_DP = 8f
 private const val HOLD_GESTURE_THRESHOLD_MS = 300L
 
@@ -1330,9 +1335,9 @@ internal fun compactNotificationShapes(
     expanded: Boolean
 ): List<CompactNotificationShape> = when {
     notificationCount < 2 -> emptyList()
-    !expanded -> listOf(CompactNotificationShape.Circle)
-    notificationCount == 2 -> listOf(CompactNotificationShape.MiniPill)
-    else -> listOf(CompactNotificationShape.MiniPill, CompactNotificationShape.Circle)
+    // Like the Dynamic Island, other activities stay put as a small detached circle while
+    // one expands; morphing them across the camera made the expand look jittery.
+    else -> listOf(CompactNotificationShape.Circle)
 }
 
 private fun trySkipMedia(

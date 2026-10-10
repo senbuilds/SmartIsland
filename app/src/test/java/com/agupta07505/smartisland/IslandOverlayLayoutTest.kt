@@ -21,7 +21,7 @@ class IslandOverlayLayoutTest {
             compactNotificationShapes(notificationCount = 2, expanded = false)
         )
         assertEquals(
-            listOf(CompactNotificationShape.MiniPill),
+            listOf(CompactNotificationShape.Circle),
             compactNotificationShapes(notificationCount = 2, expanded = true)
         )
         assertEquals(
@@ -29,7 +29,7 @@ class IslandOverlayLayoutTest {
             compactNotificationShapes(notificationCount = 3, expanded = false)
         )
         assertEquals(
-            listOf(CompactNotificationShape.MiniPill, CompactNotificationShape.Circle),
+            listOf(CompactNotificationShape.Circle),
             compactNotificationShapes(notificationCount = 3, expanded = true)
         )
     }
