@@ -1,79 +1,77 @@
-<h1 align="center">Smart Island · Galaxy Z Fold8 特调版</h1>
+<h1 align="center">Smart Island · Galaxy Z Fold8 Edition</h1>
+
+<p align="center"><strong>English</strong> · <a href="README.zh-CN.md">简体中文</a></p>
 
 <p align="center">
-  <strong>Smart Island Fold8</strong> — 为 Galaxy Z Fold8 外屏特调的灵动岛，加入液态水滴动效与苹果式交互。<br/>
-  A Galaxy Z Fold8 tuned edition of <a href="https://github.com/agupta07505/SmartIsland">Smart Island</a> with liquid droplet motion and iOS-style interaction.
+  <strong>Smart Island Fold8</strong> — a Galaxy Z Fold8 tuned edition of <a href="https://github.com/agupta07505/SmartIsland">Smart Island</a>, with liquid droplet motion and iOS-style interaction, fitted to the Fold8 cover screen.
 </p>
 
 <p align="center">
-  <strong>当前版本 / Current release: v7.0.0-fold8.1</strong> · 基于 Smart Island v7.0.0 · GPL-3.0
+  <strong>Current release: v7.0.0-fold8.1</strong> · based on Smart Island v7.0.0 · GPL-3.0
 </p>
 
 <p align="center">
-  <img src="docs/media/droplet-1x.gif" width="560" alt="水滴动效：正常速度" /><br/>
-  <sub>正常速度</sub>
+  <img src="docs/media/droplet-1x.gif" width="560" alt="Droplet motion at normal speed" /><br/>
+  <sub>Normal speed</sub>
 </p>
 <p align="center">
-  <img src="docs/media/droplet-3x.gif" width="560" alt="水滴动效：慢动作 ×3" /><br/>
-  <sub>慢动作 ×3：鼓起 → 流开 → 次通知补位 · 挤压 → 啵 → 咚</sub>
+  <img src="docs/media/droplet-3x.gif" width="560" alt="Droplet motion, 3× slow motion" /><br/>
+  <sub>3× slow motion: swell → flow open → companion slides in · squeeze → pop → thud</sub>
 </p>
 
-## 水滴动效
+## Droplet Motion
 
-整套动效的设计是「一滴水被拉开，再凝回一滴」：打开有黏性，收起有重量，停下来有张力。
+The whole motion is designed as "a drop of water pulled apart, then gathering back into one": opening feels viscous, closing has weight, and resting shapes hold surface tension.
 
-- **展开：先鼓起来，再流开。** 灵动岛先轻轻鼓起 6%，像水滴内部有了压力；随后向两侧舒展，宽度先到、高度慢半拍、顶部最后落下，接近目标时略微冲过头再被表面张力拉回。内容在形状基本展开后才从模糊中浮现。
-- **收起：边缘先回流，最后“咚”一下。** 内容先淡去，轮廓向摄像头收拢，越接近越快、外侧边缘略微滞后；凝回的瞬间整体轻轻下沉、横向摊开、纵向压扁，回弹一次后停稳，同时配一下短促低沉的触感。
-- **两滴水之间的让位与挤出。** 主通知展开后，旁边的次通知晚 100ms 被“吸”到摄像头位置补位，沿浅弧线移动、朝中心的一侧先被拉长，途中与主通知之间拉出一道细颈再断开；主通知回来时先把次通知挤扁，接触处形成连接颈部，越拉越细，“啵”地断开，约 50ms 后主通知“咚”地落稳。
-- **只有轮廓是液体。** 图标和文字始终清晰，不被拉伸，也不会两份内容叠在一起；液态融合只在形状运动、彼此靠近时出现，停下后边缘恢复锐利。
+- **Expand: swell, then flow open.** The island first swells by 6%, as if pressure built up inside the drop; then it spreads sideways — width first, height half a beat later, the top edge last — overshooting slightly before surface tension pulls it back. Content fades in from a blur only once the shape has mostly opened.
+- **Collapse: edges flow back, then a "thud".** Content fades first, the outline gathers toward the camera, faster as it gets closer, with the outer edges trailing slightly. As it reforms, the drop sinks a little, spreads wide, squashes flat, rebounds once and settles — paired with a short, low haptic tap.
+- **Two drops making way and squeezing out.** When the main notification expands, the secondary activity is drawn into the camera position 100ms later, travelling along a shallow arc with its leading side stretched, briefly connected to the main card by a thin neck that then snaps. When the main notification returns, it squashes the secondary first; the neck between them thins until it pops, and ~50ms later the main island lands with a thud.
+- **Only the outline is liquid.** Icons and text stay sharp, never stretched, and two sets of content never overlap. Liquid merging only happens while shapes move close to each other; at rest the edges are crisp again.
 
-实现上，所有黑色轮廓画在同一图层，运动时对该层做「高斯模糊 + 透明度阈值」，靠近的形状自然融合（metaball）；动作顺序由一个时间线编排器统一驱动（`IslandMotion.kt`）。上方动图由 [`docs/index.html`](docs/index.html) 按同一套时间线逐帧渲染生成，可在浏览器中直接打开交互体验。
+Under the hood, every black outline is drawn on one layer; while moving, that layer gets a Gaussian blur plus an alpha threshold so nearby shapes merge naturally (metaballs). The choreography is driven by a single timeline (`IslandMotion.kt`). The GIFs above are rendered frame by frame from [`docs/index.html`](docs/index.html) using the same timeline — open it in a browser to play with it.
 
-## 这是什么
+## What Is This
 
-这是 Animesh Gupta 开源项目 [Smart Island](https://github.com/agupta07505/SmartIsland) 的一个分支版本，针对 **Samsung Galaxy Z Fold8 外屏**做了特调。原项目的全部功能都保留；改动集中在灵动岛的形态、动效和交互上。
+A fork of Animesh Gupta's open-source [Smart Island](https://github.com/agupta07505/SmartIsland), tuned for the **Samsung Galaxy Z Fold8 cover screen**. All original features are kept; the changes focus on the island's shape, motion and interaction.
 
-### 特调内容
+### What's Tuned
 
-**液态水滴质感**
-- 展开像一滴水被拉开：先轻轻鼓起，再向两侧流开、略微冲过头后被“表面张力”拉回；内容在形状稳定后才从模糊中浮现。
-- 收起像水回流成一滴：边缘先回流、越近越快，最后“咚”一下落稳（轻微下沉、压扁、回弹一次，配低沉触感）。
-- 两个活动之间有液态关系：主通知展开时，次通知被吸到摄像头位置补位，中间短暂拉出一道细颈；主通知回来时把次通知“啵”地挤到旁边。
-- 只有黑色轮廓参与融合与形变，图标和文字始终清晰。
+**Liquid droplet feel**
+- Expanding feels like a drop being pulled open: a gentle swell, then flowing out sideways with a small overshoot pulled back by "surface tension"; content emerges from a blur once the shape settles.
+- Collapsing feels like water flowing back into one drop: edges retreat, accelerating, then land with a "thud" (slight sink, squash, one rebound, low haptic).
+- Activities interact like liquid: the secondary activity is drawn into the camera slot when the main one expands, with a brief neck between them; when the main one returns it pops the secondary back out to the side.
+- Only the black outlines merge and deform; icons and text always stay sharp.
 
-**为 Fold8 外屏匹配**
-- 灵动岛锁定在外屏摄像头孔上，内容不会进入孔区。
-- 外屏几乎是直角，展开卡片改为 20dp 圆角、左右各留 14dp 边距，并放在状态栏下方，不与时间和信号图标重叠。
-- 收起的胶囊按苹果 HIG 的 36.67dp 高度，两端改为连续曲率圆角，圆形图标与端头同心。
+**Fitted to the Fold8 cover screen**
+- The island is anchored to the cover-screen camera cutout; content never enters the hole.
+- The cover screen has near-square corners, so the expanded card uses a 20dp radius with 14dp side margins and sits below the status bar, clear of the clock and signal icons.
+- The collapsed capsule follows Apple's HIG height of 36.67dp, with continuous-curvature ends; round icons sit concentric with the ends.
 
-**苹果式通知交互**
-- 纯黑通知卡片：应用名与时间在顶部，标题 + 最多两行正文，深色半透明操作按钮。
-- 左右滑清除当前通知，上滑收回岛上（不删除），下滑或单击打开应用；新通知弹出后停留 15 秒。
+**iOS-style notification interaction**
+- Pure black notification card: app name and time on top, title plus up to two lines of body text, dark translucent action buttons.
+- Swipe left/right to clear the current notification, swipe up to tuck it back into the island (not deleted), swipe down or tap to open the app; new notifications stay expanded for 15 seconds.
 
-**更稳的渲染**
-- 绘制窗口全屏且永不改变大小，触摸由独立的透明窗口转发，消除了展开/收起结束时的闪烁与错位。
-- 灵动岛动画固定按 1 倍速播放，不受系统“动画缩放”设置影响。
+**Steadier rendering**
+- The drawing window is full-screen and never resized; touches are forwarded through a separate transparent window, eliminating flicker and jumps at the end of expand/collapse.
+- Island animations always play at 1× speed, regardless of the system animation scale setting.
 
-完整改动见 [CHANGELOG.md](CHANGELOG.md)。
+See [CHANGELOG.md](CHANGELOG.md) for the full list of changes.
 
-### 安装说明
+### Installation Notes
 
-- 应用 ID 为 `com.senbuilds.smartisland.fold8`，可与原版 Smart Island 共存。
-- 首次使用需要手动开启通知使用权和无障碍服务（与原版相同）。
-- 应用内“检查更新”指向本仓库的发布页。
+- Application ID is `com.senbuilds.smartisland.fold8`, so it can be installed alongside the original Smart Island.
+- On first launch, grant Notification Access and enable the Accessibility Service manually (same as the original).
+- In-app "Check for updates" points to this repository's releases.
 
-### 致谢与协议
+### Credits & License
 
-- 原项目：[Smart Island](https://github.com/agupta07505/SmartIsland) © Animesh Gupta，GPL-3.0。
-- 本特调版由 Sen Hu（[@senbuilds](https://github.com/senbuilds)）于 2026 年 10 月修改，同样以 [GNU GPL v3.0](LICENSE) 发布。原作者的版权声明均保留在各源文件中；本版本新增的文件标注了特调版的版权。
-- 问题反馈请提交到本仓库的 [Issues](https://github.com/senbuilds/SmartIsland/issues)，不要提交给原项目。
+- Original project: [Smart Island](https://github.com/agupta07505/SmartIsland) © Animesh Gupta, GPL-3.0.
+- This edition was modified by Sen Hu ([@senbuilds](https://github.com/senbuilds)) in October 2026 and is likewise released under the [GNU GPL v3.0](LICENSE). The original author's copyright notices are kept in every source file; files added in this edition carry the edition's copyright header.
+- Please report issues to this repository's [Issues](https://github.com/senbuilds/SmartIsland/issues), not to the original project.
 
 ---
 
-<p align="center"><em>以下为原项目 Smart Island 的说明 / Original Smart Island README below</em></p>
-
-<h1 align="center">Smart Island</h1>
-
+<p align="center"><em>Original Smart Island README below</em></p>
 <p align="center">
   A lightweight, privacy-first Android overlay that turns notifications, calls, media playback, battery states, timers, stopwatches, and system activities into a floating glanceable Dynamic Island.
 </p>
